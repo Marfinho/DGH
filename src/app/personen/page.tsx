@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireUser, ROLES, ROLE_LABEL } from "@/lib/auth";
+import { requireUser, ROLES, ROLE_LABEL, appUrl } from "@/lib/auth";
 import { PageTitle } from "@/components/ui";
 import { savePerson, deletePerson, revokeSessions } from "./actions";
 import { InviteButton } from "./invite";
@@ -18,6 +18,12 @@ export default async function Personen() {
         Löschen entfernt die Person vollständig; ihre Aufgaben bleiben ohne Zuständigen bestehen.
       </p>
       <p className="mb-4"><a href="/api/backup" className="btn-light">Datenbank-Backup herunterladen</a> <span className="ml-2 text-sm text-stone-600">Ein automatisches Backup läuft täglich auf dem Server (siehe README).</span></p>
+      <details className="card mb-6"><summary className="font-display text-2xl font-extrabold uppercase text-brand-600">Button für die Dorf-Website</summary>
+        <p className="my-2 text-sm text-stone-600">Diesen Code in die Website einfügen (z. B. WordPress: Block „Eigenes HTML“). Der Button führt direkt zur Seite „Dorfplaner aufs Handy holen“ mit Installationsknopf und Anmeldung; der QR-Code unter <a className="font-semibold text-brand-600 underline" href="/installieren">/installieren</a> eignet sich für Aushang und Flyer.</p>
+        <textarea readOnly rows={5} className="input font-mono text-xs" value={`<a href="${appUrl()}/installieren" style="display:inline-block;background:#0B4F2A;color:#fff;font:700 20px/1.2 system-ui,sans-serif;padding:14px 22px;border-radius:8px;text-decoration:none;border:3px solid #0B4F2A">📱 Dorfplaner-App aufs Handy holen</a>`} />
+        <p className="mt-2 text-sm font-semibold">Vorschau:</p>
+        <a href="/installieren" style={{ display: "inline-block", background: "#0B4F2A", color: "#fff", font: "700 20px/1.2 system-ui,sans-serif", padding: "14px 22px", borderRadius: 8, textDecoration: "none", border: "3px solid #0B4F2A" }}>📱 Dorfplaner-App aufs Handy holen</a>
+      </details>
       <form action={savePerson} className="card mb-6 grid gap-3 sm:grid-cols-5">
         <div><label className="label">Name *</label><input name="name" required className="input" /></div>
         <div><label className="label">E-Mail</label><input name="email" type="email" className="input" /></div>

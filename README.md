@@ -27,6 +27,9 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 
 Aufgaben und Änderungsprotokoll sehen nur Organisatoren; Bewohner sehen nur ihre eigenen Aufgaben. Neue Veranstaltungen sind zunächst **Entwürfe** und erscheinen für Bewohner erst nach „Veröffentlichen“.
 
+## App aufs Handy / Button für die Website
+Die öffentliche Seite `/installieren` („Dorfplaner aufs Handy holen“) hat einen Installationsknopf (Android/Chrome), eine Anleitung für iPhone, den Weg zur Anmeldung und einen QR-Code (`/installieren/qr.svg`, druckbar). Unter „Personen“ (Admin) steht ein fertiger Button-Code zum Einfügen in die Dorf-Website (WordPress: Block „Eigenes HTML“). `APP_URL` muss auf die öffentliche https-Adresse zeigen, sonst stimmen QR-Code und Button-Link nicht.
+
 ## Lokal entwickeln
 ```bash
 cp .env.example .env
