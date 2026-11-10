@@ -3,12 +3,13 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { relativeLabel } from "@/lib/dates";
 import { PageTitle } from "@/components/ui";
+import { formatMoney } from "@/lib/money";
 import { updateTemplate, deleteTemplate, saveTplMilestone, deleteTplMilestone, saveTplTask, deleteTplTask } from "../actions";
 
 export default async function VorlageDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireUser("ORGANISATOR");
   const id = Number((await params).id);
-  const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } } } });
+  const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } }, budgetItems: { orderBy: { id: "asc" } } } });
   if (!t) notFound();
 
   const taskForm = (task: (typeof t.tasks)[number] | null) => (
@@ -69,6 +70,12 @@ export default async function VorlageDetail({ params }: { params: Promise<{ id: 
         ))}
         <div className="card">{taskForm(null)}</div>
       </div>
+
+      {t.budgetItems.length > 0 && (
+        <section className="card mt-6"><h2 className="mb-1">Budget-Vorlage</h2>
+          <p className="mb-2 text-sm text-stone-600">Wird bei neuen Veranstaltungen als geplante Posten übernommen (Freigaben starten immer neu). Änderungen: in einer Veranstaltung anpassen und „Als Vorlage speichern“.</p>
+          <ul className="text-sm">{t.budgetItems.map((b) => <li key={b.id} className="flex justify-between border-t border-stone-200 py-1.5 first:border-0"><span>{b.kind === "AUSGABE" ? "Ausgabe" : "Einnahme"}: {b.title}</span><b>{formatMoney(b.plannedCents)}</b></li>)}</ul></section>
+      )}
 
       <form action={deleteTemplate} className="mt-8"><input type="hidden" name="id" value={t.id} /><button className="btn-danger">Vorlage löschen</button></form>
     </>

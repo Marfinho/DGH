@@ -4,6 +4,7 @@ import { requireUser, hasRole } from "@/lib/auth";
 import { today, formatDay, diffDays, addDays } from "@/lib/dates";
 import { Progress, StatusBadge, PageTitle } from "@/components/ui";
 import { setRsvp } from "./veranstaltungen/mitmachen";
+import { formatMoney } from "@/lib/money";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ fehler?: string }> }) {
   const me = await requireUser();
@@ -20,6 +21,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
     db.wasteDate.findMany({ where: { date: { gte: t, lte: addDays(t, 14) } }, orderBy: { date: "asc" }, take: 6 }),
     db.task.findMany({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" } }, orderBy: { dueDate: "asc" }, take: 5, include: { event: true } }),
   ]);
+  const approvals = await db.budgetItem.findMany({
+    where: { status: "BEANTRAGT", OR: [{ requestedById: null }, { requestedById: { not: me.id } }], ...(me.role === "ADMIN" ? {} : { event: { members: { some: { personId: me.id, role: "FREIGEBER" } } } }) },
+    orderBy: { createdAt: "asc" }, take: 20, include: { event: true, requestedBy: true },
+  });
   const open = orga ? await db.task.findMany({ where: { status: { not: "ERLEDIGT" }, event: { status: "GEPLANT" }, dueDate: { lte: addDays(t, 14) } }, orderBy: { dueDate: "asc" }, take: 40, include: { event: true, assignee: true } }) : [];
   const overdue = open.filter((x) => x.dueDate < t), soon = open.filter((x) => x.dueDate >= t);
 
@@ -47,10 +52,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
             </Link>
             <div className="mt-1 text-lg font-semibold">{e.location ? `${e.location} · ` : ""}{n === 0 ? "heute" : `noch ${n} Tage`}</div>
             {orga ? <div className="mt-3"><Progress onDark done={e.tasks.filter((x) => x.status === "ERLEDIGT").length} total={e.tasks.length} /></div> : (
-              <form action={setRsvp} className="mt-4 flex flex-wrap gap-2"><input type="hidden" name="eventId" value={e.id} /><input type="hidden" name="guests" value={e.rsvps[0]?.guests ?? 0} />
-                <button name="status" value="JA" className={`min-h-[52px] flex-[1.3] rounded-md px-4 font-display text-2xl font-extrabold uppercase ${mine === "JA" ? "bg-white text-brand-600" : "bg-sun text-ink"}`}>{mine === "JA" ? "✓ Du kommst" : "Ich komme!"}</button>
-                <button name="status" value="VIELLEICHT" className={`min-h-[52px] flex-1 rounded-md border-[3px] border-white px-4 font-display text-xl font-bold uppercase ${mine === "VIELLEICHT" ? "bg-white text-poster" : "text-white"}`}>Vielleicht</button>
-                <button name="status" value="NEIN" className={`min-h-[52px] rounded-md border-[3px] border-white px-4 font-display text-xl font-bold uppercase ${mine === "NEIN" ? "bg-white text-poster" : "text-white"}`}>Kann nicht</button>
+              <form className="mt-4 flex flex-wrap gap-2"><input type="hidden" name="eventId" value={e.id} /><input type="hidden" name="guests" value={e.rsvps[0]?.guests ?? 0} />
+                <button formAction={setRsvp.bind(null, "JA")} className={`min-h-[52px] flex-[1.3] rounded-md px-4 font-display text-2xl font-extrabold uppercase ${mine === "JA" ? "bg-white text-brand-600" : "bg-sun text-ink"}`}>{mine === "JA" ? "✓ Du kommst" : "Ich komme!"}</button>
+                <button formAction={setRsvp.bind(null, "VIELLEICHT")} className={`min-h-[52px] flex-1 rounded-md border-[3px] border-white px-4 font-display text-xl font-bold uppercase ${mine === "VIELLEICHT" ? "bg-white text-poster" : "text-white"}`}>Vielleicht</button>
+                <button formAction={setRsvp.bind(null, "NEIN")} className={`min-h-[52px] rounded-md border-[3px] border-white px-4 font-display text-xl font-bold uppercase ${mine === "NEIN" ? "bg-white text-poster" : "text-white"}`}>Kann nicht</button>
               </form>
             )}
           </section>
@@ -70,6 +75,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
           ))}
         </div>
       </section>
+
+      {approvals.length > 0 && (
+        <section className="card mb-4 !border-poster !shadow-[5px_5px_0_#BA1722]"><h2 className="mb-2 !text-poster">Zur Freigabe ({approvals.length})</h2>
+          <ul>{approvals.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-center gap-x-3 border-t-2 border-stone-200 py-2 first:border-0">
+              <span className="font-semibold">{a.title}</span><span className="font-display text-xl font-bold">{formatMoney(a.plannedCents)}</span>
+              <span className="text-sm text-stone-600">{a.event.title}{a.requestedBy ? ` · von ${a.requestedBy.name}` : ""}</span>
+              <Link href={`/veranstaltungen/${a.eventId}/budget`} className="btn-sun ml-auto">Prüfen</Link>
+            </li>))}</ul></section>
+      )}
 
       <div className="mb-4 grid gap-4 md:grid-cols-2">
         <section className="card"><h2 className="mb-2">Meine Aufgaben</h2><ul className="text-sm">{mine.map((x) => <li key={x.id} className="flex gap-2 border-t border-stone-100 py-1.5 first:border-0"><span className="font-medium">{x.title}</span><span className="ml-auto text-stone-600">{formatDay(x.dueDate)}</span></li>)}</ul>{!mine.length && <p className="text-sm text-stone-500">Keine offenen Aufgaben.</p>}<Link href="/meine-aufgaben" className="mt-2 inline-block text-sm text-brand-600 hover:underline">Alle ansehen →</Link></section>

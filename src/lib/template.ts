@@ -4,7 +4,7 @@ import { addDays, diffDays } from "./dates";
 /** Legt Veranstaltung samt Meilensteinen/Aufgaben aus einer Vorlage an; Termine = Eventdatum + Offset. */
 export async function createEventFromTemplate(input: { title: string; date: Date; location?: string | null; templateId?: number | null }) {
   const tpl = input.templateId
-    ? await db.template.findUnique({ where: { id: input.templateId }, include: { milestones: true, tasks: true } })
+    ? await db.template.findUnique({ where: { id: input.templateId }, include: { milestones: true, tasks: true, budgetItems: true } })
     : null;
   return db.$transaction(async (tx) => {
     const ev = await tx.event.create({ data: { title: input.title, date: input.date, location: input.location || null, templateId: tpl?.id ?? null } });
@@ -18,6 +18,7 @@ export async function createEventFromTemplate(input: { title: string; date: Date
         await tx.task.create({ data: { eventId: ev.id, title: t.title, description: t.description, sort: t.sort, dueDate: addDays(input.date, t.offsetDays), milestoneId: t.milestoneId ? map.get(t.milestoneId) ?? null : null } });
       }
     }
+    if (tpl) for (const b of tpl.budgetItems) await tx.budgetItem.create({ data: { eventId: ev.id, kind: b.kind, title: b.title, category: b.category, plannedCents: b.plannedCents } });
     await tx.activityLog.create({ data: { eventId: ev.id, text: tpl ? `Veranstaltung aus Vorlage „${tpl.name}“ angelegt` : "Veranstaltung angelegt" } });
     return ev;
   });
@@ -25,13 +26,14 @@ export async function createEventFromTemplate(input: { title: string; date: Date
 
 /** Speichert die Veranstaltung als neue Vorlage oder überschreibt eine bestehende. Offsets = Fälligkeit − Eventdatum. */
 export async function saveEventAsTemplate(eventId: number, target: { newName: string } | { templateId: number }) {
-  const ev = await db.event.findUniqueOrThrow({ where: { id: eventId }, include: { milestones: true, tasks: true } });
+  const ev = await db.event.findUniqueOrThrow({ where: { id: eventId }, include: { milestones: true, tasks: true, budgetItems: true } });
   return db.$transaction(async (tx) => {
     let id: number, name: string;
     if ("templateId" in target) {
       const t = await tx.template.update({ where: { id: target.templateId }, data: {} });
       await tx.templateTask.deleteMany({ where: { templateId: t.id } });
       await tx.templateMilestone.deleteMany({ where: { templateId: t.id } });
+      await tx.templateBudgetItem.deleteMany({ where: { templateId: t.id } });
       id = t.id; name = t.name;
     } else {
       const t = await tx.template.create({ data: { name: target.newName } });
@@ -45,6 +47,7 @@ export async function saveEventAsTemplate(eventId: number, target: { newName: st
     for (const t of ev.tasks) {
       await tx.templateTask.create({ data: { templateId: id, title: t.title, description: t.description, sort: t.sort, offsetDays: diffDays(t.dueDate, ev.date), milestoneId: t.milestoneId ? map.get(t.milestoneId) ?? null : null } });
     }
+    for (const b of ev.budgetItems) await tx.templateBudgetItem.create({ data: { templateId: id, kind: b.kind, title: b.title, category: b.category, plannedCents: b.plannedCents } });
     await tx.activityLog.create({ data: { eventId, text: `Als Vorlage „${name}“ gespeichert` } });
     return id;
   });

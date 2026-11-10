@@ -5,7 +5,7 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 **Design „Plakat“:** Logo-Farben Grün `#0B4F2A`, Rot `#BA1722`, Gelb `#FFCA01`, kräftige Rahmen, Condensed-Überschriften; Handy mit Tab-Leiste, Desktop mit Kopfmenü. Farben und Schriften stehen in `tailwind.config.ts` und `src/app/globals.css`, das Logo in `public/logo.png`.
 
 ## Funktionen
-**Planung (Orga):** Vorlagen mit Fristen relativ zum Veranstaltungstag · Veranstaltungen als Projekte mit Meilensteinen, Aufgaben (Status, Zuständige) · Lessons Learned · „Als Vorlage speichern“ · Änderungsprotokoll · Helfer-Slots · Zu-/Absagen-Übersicht
+**Planung (Orga):** Vorlagen mit Fristen relativ zum Veranstaltungstag · Veranstaltungen als Projekte mit Meilensteinen, Aufgaben (Status, Zuständige) · Lessons Learned · „Als Vorlage speichern“ · Änderungsprotokoll · Helfer-Slots · Zu-/Absagen-Übersicht · **Budget pro Veranstaltung** (Rahmen, Ausgaben/Einnahmen, Prognose, Freigabe-Workflow)
 
 **Bewohner:** Veranstaltungen ansehen, zu-/absagen (mit Begleitung), sich für Helfer-Slots eintragen · „Meine Aufgaben“ · Neuigkeiten · Vereine/Gruppen & Ansprechpartner · Müllkalender
 
@@ -16,6 +16,8 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 | Bewohner | veröffentlichte Veranstaltungen sehen, zu-/absagen, Slots, eigene Aufgaben abhaken, Neuigkeiten/Gruppen/Müll lesen |
 | Organisator | + Vorlagen, Veranstaltungen, Aufgaben, Slots, Neuigkeiten, Gruppen, Kontakte, Müllkalender pflegen |
 | Admin | + Personen, Rollen, Einladungen, Sitzungen verwalten |
+
+**Freigeber pro Termin:** Für jede Veranstaltung können Personen (auch normale Bewohner) als *Freigeber* benannt werden. Sie sehen nur das Budget dieses Termins und geben Ausgaben frei oder lehnen sie (mit Begründung) ab. Ablauf einer Ausgabe: *Geplant → Zur Freigabe → Freigegeben/Abgelehnt → Bezahlt*. Eigene Anfragen kann niemand selbst freigeben (Vier-Augen-Prinzip, gilt auch für Admins); Beträge bis zu einer einstellbaren Grenze brauchen keine Freigabe. Wird ein freigegebener Betrag geändert, ist die Freigabe wieder offen. Freigeber und Antragsteller bekommen Push-Nachrichten, offene Freigaben stehen auf der Startseite. Budget-Posten werden mit der Vorlage übernommen (ohne Freigaben).
 
 Aufgaben und Änderungsprotokoll sehen nur Organisatoren; Bewohner sehen nur ihre eigenen Aufgaben. Neue Veranstaltungen sind zunächst **Entwürfe** und erscheinen für Bewohner erst nach „Veröffentlichen“.
 

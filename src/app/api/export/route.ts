@@ -5,14 +5,16 @@ import { getUser } from "@/lib/auth";
 export async function GET() {
   const u = await getUser();
   if (!u) return new Response("Unauthorized", { status: 401 });
-  const [profile, tasks, signups, rsvps, push] = await Promise.all([
+  const [profile, tasks, signups, rsvps, push, roles, requests] = await Promise.all([
     db.person.findUniqueOrThrow({ where: { id: u.id }, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true, lastLoginAt: true } }),
     db.task.findMany({ where: { assigneeId: u.id }, select: { title: true, dueDate: true, status: true, event: { select: { title: true } } } }),
     db.helperSignup.findMany({ where: { personId: u.id }, select: { createdAt: true, slot: { select: { title: true, event: { select: { title: true, date: true } } } } } }),
     db.rsvp.findMany({ where: { personId: u.id }, select: { status: true, guests: true, event: { select: { title: true, date: true } } } }),
     db.pushSubscription.count({ where: { personId: u.id } }),
+    db.eventMember.findMany({ where: { personId: u.id }, select: { role: true, event: { select: { title: true, date: true } } } }),
+    db.budgetItem.findMany({ where: { OR: [{ requestedById: u.id }, { decidedById: u.id }] }, select: { title: true, plannedCents: true, status: true, event: { select: { title: true } } } }),
   ]);
-  return new Response(JSON.stringify({ exportiertAm: new Date().toISOString(), profil: profile, aufgaben: tasks, helferEintraege: signups, zusagen: rsvps, pushGeraete: push }, null, 2), {
+  return new Response(JSON.stringify({ exportiertAm: new Date().toISOString(), profil: profile, aufgaben: tasks, helferEintraege: signups, zusagen: rsvps, pushGeraete: push, rollenBeiVeranstaltungen: roles, budgetAntraegeUndEntscheidungen: requests }, null, 2), {
     headers: { "content-type": "application/json; charset=utf-8", "content-disposition": 'attachment; filename="meine-daten.json"' },
   });
 }

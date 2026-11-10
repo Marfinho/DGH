@@ -1,7 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, hasRole } from "@/lib/auth";
 import { setRsvp, joinSlot, leaveSlot } from "../mitmachen";
+import { budgetAccess } from "@/lib/budget-access";
+import { summarize } from "@/lib/budget";
+import { formatMoney } from "@/lib/money";
 import { today, toInput, formatDay } from "@/lib/dates";
 import { EVENT_STATUS, EVENT_LABEL, TASK_STATUS, TASK_LABEL } from "@/lib/constants";
 import { StatusBadge, Progress, EventHero, OverdueBadge } from "@/components/ui";
@@ -16,24 +20,37 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
     db.template.findMany({ orderBy: { name: "asc" } }),
   ]);
   if (!ev) notFound();
+  const acc = await budgetAccess(id, me);
+  const bItems = acc.view ? await db.budgetItem.findMany({ where: { eventId: id }, select: { kind: true, plannedCents: true, actualCents: true, status: true } }) : [];
+  const bs = summarize(bItems, ev.budgetCents);
+  const pending = bItems.filter((i) => i.status === "BEANTRAGT").length;
+  const budgetCard = acc.view && (
+    <section className="card mb-4">
+      <h2 className="mb-1">Budget &amp; Freigaben</h2>
+      <p className="text-sm text-stone-700">Erwartete Ausgaben <b>{formatMoney(bs.expectedExpense)}</b>{ev.budgetCents != null && <> von {formatMoney(ev.budgetCents)}</>} · Ergebnis (Prognose) <b>{formatMoney(bs.result)}</b>{pending > 0 && <> · <b className="text-poster">{pending} wartet auf Freigabe</b></>}</p>
+      {bs.over && <p className="text-sm font-bold text-poster">Budgetrahmen überschritten</p>}
+      <Link href={`/veranstaltungen/${id}/budget`} className="btn mt-2">Budget öffnen</Link>
+    </section>
+  );
   if (!hasRole(me, "ORGANISATOR")) {
-    if (!ev.published || ev.status === "ARCHIVIERT") notFound();
+    if (!acc.isFreigeber && (!ev.published || ev.status === "ARCHIVIERT")) notFound();
     const mine = ev.rsvps.find((r) => r.personId === me.id);
     const yes = ev.rsvps.filter((r) => r.status === "JA");
     return (
       <>
         <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""}`} title={ev.title} />
         {ev.description && <p className="card mb-4 whitespace-pre-line">{ev.description}</p>}
+        {budgetCard}
         <section className="card mb-4">
-          <h2 className="mb-2 ">Kommst du?</h2>
-          <form action={setRsvp} className="flex flex-wrap items-end gap-2"><input type="hidden" name="eventId" value={ev.id} />
+          <h2 className="mb-2">Kommst du?</h2>
+          <form className="flex flex-wrap items-end gap-2"><input type="hidden" name="eventId" value={ev.id} />
             <div><label className="label">Weitere Personen (ohne dich)</label><input name="guests" type="number" min={0} max={20} defaultValue={mine?.guests ?? 0} className="input w-24" /></div>
-            {(["JA", "VIELLEICHT", "NEIN"] as const).map((st) => <button key={st} name="status" value={st} className={mine?.status === st ? "btn" : "btn-light"}>{st === "JA" ? "Ich komme" : st === "NEIN" ? "Ich kann nicht" : "Vielleicht"}</button>)}
+            {(["JA", "VIELLEICHT", "NEIN"] as const).map((st) => <button key={st} formAction={setRsvp.bind(null, st)} className={mine?.status === st ? "btn" : "btn-light"}>{st === "JA" ? "Ich komme" : st === "NEIN" ? "Ich kann nicht" : "Vielleicht"}</button>)}
           </form>
           <p className="mt-2 text-xs text-stone-500">{yes.length + yes.reduce((a, r) => a + r.guests, 0)} Personen haben bisher zugesagt.</p>
         </section>
         {ev.slots.length > 0 && (
-          <section className="card mb-4"><h2 className="mb-2 ">Helfer gesucht</h2>
+          <section className="card mb-4"><h2 className="mb-2">Helfer gesucht</h2>
             <ul>{ev.slots.map((sl) => { const joined = sl.signups.some((x) => x.personId === me.id); const full = sl.signups.length >= sl.capacity; return (
               <li key={sl.id} className="flex flex-wrap items-center gap-x-3 border-t border-stone-100 py-2 first:border-0">
                 <div className="min-w-0 flex-1"><div className="font-medium">{sl.title}{sl.timeText ? <span className="font-normal text-stone-600"> · {sl.timeText}</span> : null}</div>{sl.description && <div className="text-sm text-stone-600">{sl.description}</div>}<div className="text-xs text-stone-500">{sl.signups.length} von {sl.capacity} Plätzen vergeben</div></div>
@@ -113,8 +130,9 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
         <button className="btn">Hinzufügen</button>
       </form>
 
+      {budgetCard}
       <section className="card mb-4">
-        <h2 className="mb-2 ">Helfer-Slots</h2>
+        <h2 className="mb-2">Helfer-Slots</h2>
         <ul className="mb-3">{ev.slots.map((sl) => (
           <li key={sl.id} className="border-t border-stone-100 py-2 first:border-0">
             <div className="font-medium">{sl.title}{sl.timeText ? <span className="font-normal text-stone-600"> · {sl.timeText}</span> : null} <span className="text-sm font-normal text-stone-500">({sl.signups.length}/{sl.capacity}: {sl.signups.map((x) => x.person.name).join(", ") || "noch niemand"})</span></div>
@@ -132,7 +150,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="card mb-4">
-        <h2 className="mb-2 ">Zu- und Absagen</h2>
+        <h2 className="mb-2">Zu- und Absagen</h2>
         {(() => { const c = (st: string) => ev.rsvps.filter((r) => r.status === st); const pax = c("JA").reduce((a, r) => a + 1 + r.guests, 0);
           return <><p className="text-sm text-stone-700">✅ {c("JA").length} Zusagen ({pax} Personen inkl. Begleitung) · ❓ {c("VIELLEICHT").length} vielleicht · ❌ {c("NEIN").length} Absagen</p>
             <p className="mt-1 text-sm text-stone-600">{c("JA").map((r) => `${r.person.name}${r.guests ? ` +${r.guests}` : ""}`).join(", ")}</p></>; })()}
@@ -140,14 +158,14 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="card mb-4">
-        <h2 className="mb-2 ">Lessons Learned</h2>
+        <h2 className="mb-2">Lessons Learned</h2>
         <form action={saveLessons}><input type="hidden" name="id" value={ev.id} />
           <textarea name="lessonsLearned" rows={5} defaultValue={ev.lessonsLearned ?? ""} placeholder="Was lief gut? Was machen wir nächstes Mal anders?" className="input" />
           <button className="btn mt-2">Speichern</button></form>
       </section>
 
       <section className="card mb-4">
-        <h2 className="mb-2 ">Als Vorlage speichern</h2>
+        <h2 className="mb-2">Als Vorlage speichern</h2>
         <p className="mb-2 text-sm text-stone-600">Übernimmt Meilensteine und Aufgaben in der jetzigen Form; Fristen werden wieder relativ zum Veranstaltungstag gespeichert.</p>
         <form action={saveAsTemplate} className="flex flex-wrap items-end gap-2"><input type="hidden" name="eventId" value={ev.id} />
           <div><label className="label">Bestehende Vorlage überschreiben</label><select name="templateId" defaultValue={ev.templateId ?? ""} className="input"><option value="">– neue Vorlage –</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
@@ -168,7 +186,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
         <form action={deleteEvent} className="mt-4"><input type="hidden" name="id" value={ev.id} /><button className="btn-danger">Veranstaltung löschen</button></form>
       </details>
 
-      <section className="card"><h2 className="mb-2 ">Änderungsprotokoll</h2>
+      <section className="card"><h2 className="mb-2">Änderungsprotokoll</h2>
         <ul className="space-y-1 text-sm text-stone-600">{ev.log.map((l) => <li key={l.id}><span className="text-stone-400">{new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" }).format(l.createdAt)}</span> {l.text}</li>)}</ul></section>
     </>
   );

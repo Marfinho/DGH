@@ -10,11 +10,12 @@ async function visibleEvent(eventId: number, me: { role: string }) {
   return ev;
 }
 
-export async function setRsvp(fd: FormData) {
+// Status kommt als gebundenes Argument (formAction), nicht über den Submitter-Button: das ist im Client-Submit nicht zuverlässig.
+export async function setRsvp(rawStatus: string, fd: FormData) {
   const me = await requireUser();
   const eventId = Number(fd.get("eventId"));
   await visibleEvent(eventId, me);
-  const status = z.enum(["JA", "NEIN", "VIELLEICHT"]).parse(fd.get("status"));
+  const status = z.enum(["JA", "NEIN", "VIELLEICHT"]).parse(rawStatus);
   const guests = z.coerce.number().int().min(0).max(20).parse(fd.get("guests") || 0);
   await db.rsvp.upsert({
     where: { eventId_personId: { eventId, personId: me.id } },
