@@ -9,13 +9,134 @@ datasource db {
 
 // Status als String (SQLite kennt keine Enums); Werte siehe src/lib/constants.ts
 model Person {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String?
-  phone     String?
-  createdAt DateTime @default(now())
-  tasks     Task[]
+  id            Int              @id @default(autoincrement())
+  name          String
+  email         String?          @unique
+  phone         String?
+  role          String           @default("BEWOHNER") // BEWOHNER | ORGANISATOR | ADMIN
+  calToken      String?          @unique // geheimer Token für den iCal-Feed
+  createdAt     DateTime         @default(now())
+  lastLoginAt   DateTime?
+  tasks         Task[]
+  sessions      Session[]
+  invites       Invite[]
+  loginTokens   LoginToken[]
+  signups       HelperSignup[]
+  rsvps         Rsvp[]
+  pushSubs      PushSubscription[]
+  newsPosts     NewsPost[]
 }
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  personId  Int
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Invite {
+  id        Int       @id @default(autoincrement())
+  codeHash  String    @unique
+  personId  Int
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model LoginToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique
+  personId  Int
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
+model HelperSlot {
+  id          Int            @id @default(autoincrement())
+  eventId     Int
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title       String
+  timeText    String? // z. B. "14:00–16:00"
+  description String?
+  capacity    Int            @default(1)
+  signups     HelperSignup[]
+}
+
+model HelperSignup {
+  id        Int        @id @default(autoincrement())
+  slotId    Int
+  slot      HelperSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  personId  Int
+  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([slotId, personId])
+}
+
+model Rsvp {
+  id       Int    @id @default(autoincrement())
+  eventId  Int
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  personId Int
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  status   String // JA | NEIN | VIELLEICHT
+  guests   Int    @default(0)
+
+  @@unique([eventId, personId])
+}
+
+model PushSubscription {
+  id       Int    @id @default(autoincrement())
+  personId Int
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  p256dh   String
+  auth     String
+}
+
+model NewsPost {
+  id          Int      @id @default(autoincrement())
+  title       String
+  body        String
+  pinned      Boolean  @default(false)
+  authorId    Int?
+  author      Person?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  publishedAt DateTime @default(now())
+}
+
+model Group {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  meetingInfo String? // z. B. "jeden 1. Dienstag, 19:30, Gemeindehaus"
+  website     String?
+  contacts    Contact[]
+}
+
+// Bewusst veröffentlichte Ansprechpartner (getrennt von Person/Login-Konten)
+model Contact {
+  id       Int     @id @default(autoincrement())
+  name     String
+  function String? // z. B. "Ortsvorsteher"
+  phone    String?
+  email    String?
+  groupId  Int?
+  group    Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  sort     Int     @default(0)
+}
+
+model WasteDate {
+  id   Int      @id @default(autoincrement())
+  type String // frei, z. B. Restmüll, Bio, Papier, Gelber Sack
+  date DateTime
+
+  @@unique([type, date])
+}
+
 
 model Template {
   id          Int                 @id @default(autoincrement())
@@ -56,6 +177,7 @@ model Event {
   location       String?
   description    String?
   status         String        @default("GEPLANT")
+  published      Boolean       @default(false) // für Bewohner sichtbar
   templateId     Int?
   template       Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
   lessonsLearned String?
@@ -64,6 +186,8 @@ model Event {
   milestones     Milestone[]
   tasks          Task[]
   log            ActivityLog[]
+  slots          HelperSlot[]
+  rsvps          Rsvp[]
 }
 
 model Milestone {

@@ -1,8 +1,10 @@
+import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PageTitle } from "@/components/ui";
 import { createEvent } from "../actions";
 
 export default async function Neu() {
+  await requireUser("ORGANISATOR");
   const templates = await db.template.findMany({ orderBy: { name: "asc" } });
   return (
     <>

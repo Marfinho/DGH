@@ -2,22 +2,41 @@ services:
   app:
     build: .
     restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/data/dorfplaner.db
     volumes:
       - dorfplaner-data:/data
     expose: ["3000"]
+
+  # Ruft täglich gegen 7–8 Uhr den Erinnerungs-Endpoint auf (Push für fällige Aufgaben, Event morgen)
+  reminders:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    env_file: .env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          now=$$(date +%s); next=$$(( (now/86400)*86400 + 6*3600 ))
+          if [ $$next -le $$now ]; then next=$$((next+86400)); fi
+          sleep $$((next-now))
+          curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/reminders || true
+        done
+    depends_on: [app]
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment:
       DOMAIN: ${DOMAIN}
-      BASIC_AUTH_USER: ${BASIC_AUTH_USER}
-      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on: [app]
+
 volumes:
   dorfplaner-data:
   caddy-data:

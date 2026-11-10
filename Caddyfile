@@ -1,8 +1,6 @@
 {$DOMAIN} {
 	encode gzip
-	# Stufe 1: gemeinsamer Zugang für das Orga-Team (wird durch den Login in Stufe 2 ersetzt)
-	basic_auth {
-		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-	}
+	# Den Schutz übernimmt der Login der App (Einladungscode / E-Mail-Link).
+	# Optional zusätzlich ein Vorhängeschloss: basic_auth { orga <hash> }
 	reverse_proxy app:3000
 }

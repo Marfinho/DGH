@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
+import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { relativeLabel } from "@/lib/dates";
 import { PageTitle } from "@/components/ui";
 import { updateTemplate, deleteTemplate, saveTplMilestone, deleteTplMilestone, saveTplTask, deleteTplTask } from "../actions";
 
 export default async function VorlageDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireUser("ORGANISATOR");
   const id = Number((await params).id);
   const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } } } });
   if (!t) notFound();

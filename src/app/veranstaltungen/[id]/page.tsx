@@ -1,18 +1,51 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { requireUser, hasRole } from "@/lib/auth";
+import { setRsvp, joinSlot, leaveSlot } from "../mitmachen";
 import { today, toInput, formatDay } from "@/lib/dates";
 import { EVENT_STATUS, EVENT_LABEL, TASK_STATUS, TASK_LABEL } from "@/lib/constants";
 import { StatusBadge, Progress } from "@/components/ui";
-import { updateEvent, saveLessons, deleteEvent, saveMilestone, deleteMilestone, saveTask, cycleTaskStatus, deleteTask, saveAsTemplate } from "../actions";
+import { updateEvent, saveSlot, deleteSlot, saveLessons, deleteEvent, saveMilestone, deleteMilestone, saveTask, cycleTaskStatus, deleteTask, saveAsTemplate } from "../actions";
 
 export default async function EventDetail({ params }: { params: Promise<{ id: string }> }) {
+  const me = await requireUser();
   const id = Number((await params).id);
   const [ev, people, templates] = await Promise.all([
-    db.event.findUnique({ where: { id }, include: { milestones: { orderBy: { dueDate: "asc" } }, tasks: { orderBy: [{ dueDate: "asc" }, { sort: "asc" }], include: { assignee: true } }, log: { orderBy: { createdAt: "desc" }, take: 15 } } }),
+    db.event.findUnique({ where: { id }, include: { slots: { orderBy: { id: "asc" }, include: { signups: { include: { person: true } } } }, rsvps: { include: { person: true } }, milestones: { orderBy: { dueDate: "asc" } }, tasks: { orderBy: [{ dueDate: "asc" }, { sort: "asc" }], include: { assignee: true } }, log: { orderBy: { createdAt: "desc" }, take: 15 } } }),
     db.person.findMany({ orderBy: { name: "asc" } }),
     db.template.findMany({ orderBy: { name: "asc" } }),
   ]);
   if (!ev) notFound();
+  if (!hasRole(me, "ORGANISATOR")) {
+    if (!ev.published || ev.status === "ARCHIVIERT") notFound();
+    const mine = ev.rsvps.find((r) => r.personId === me.id);
+    const yes = ev.rsvps.filter((r) => r.status === "JA");
+    return (
+      <>
+        <h1 className="text-2xl font-bold">{ev.title}</h1>
+        <p className="mb-4 text-stone-600">{formatDay(ev.date)}{ev.location ? ` · ${ev.location}` : ""}</p>
+        {ev.description && <p className="card mb-4 whitespace-pre-line">{ev.description}</p>}
+        <section className="card mb-4">
+          <h2 className="mb-2 font-semibold">Kommst du?</h2>
+          <form action={setRsvp} className="flex flex-wrap items-end gap-2"><input type="hidden" name="eventId" value={ev.id} />
+            <div><label className="label">Weitere Personen (ohne dich)</label><input name="guests" type="number" min={0} max={20} defaultValue={mine?.guests ?? 0} className="input w-24" /></div>
+            {(["JA", "VIELLEICHT", "NEIN"] as const).map((st) => <button key={st} name="status" value={st} className={mine?.status === st ? "btn" : "btn-light"}>{st === "JA" ? "Ich komme" : st === "NEIN" ? "Ich kann nicht" : "Vielleicht"}</button>)}
+          </form>
+          <p className="mt-2 text-xs text-stone-500">{yes.length + yes.reduce((a, r) => a + r.guests, 0)} Personen haben bisher zugesagt.</p>
+        </section>
+        {ev.slots.length > 0 && (
+          <section className="card mb-4"><h2 className="mb-2 font-semibold">Helfer gesucht</h2>
+            <ul>{ev.slots.map((sl) => { const joined = sl.signups.some((x) => x.personId === me.id); const full = sl.signups.length >= sl.capacity; return (
+              <li key={sl.id} className="flex flex-wrap items-center gap-x-3 border-t border-stone-100 py-2 first:border-0">
+                <div className="min-w-0 flex-1"><div className="font-medium">{sl.title}{sl.timeText ? <span className="font-normal text-stone-600"> · {sl.timeText}</span> : null}</div>{sl.description && <div className="text-sm text-stone-600">{sl.description}</div>}<div className="text-xs text-stone-500">{sl.signups.length} von {sl.capacity} Plätzen vergeben</div></div>
+                {joined ? <form action={leaveSlot}><input type="hidden" name="slotId" value={sl.id} /><button className="btn-light">Austragen</button></form>
+                  : full ? <span className="text-sm text-stone-500">voll</span>
+                  : <form action={joinSlot}><input type="hidden" name="slotId" value={sl.id} /><button className="btn">Eintragen</button></form>}
+              </li>); })}</ul></section>
+        )}
+      </>
+    );
+  }
   const t0 = today();
   type T = (typeof ev.tasks)[number];
 
@@ -84,6 +117,32 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       </form>
 
       <section className="card mb-4">
+        <h2 className="mb-2 font-semibold">Helfer-Slots</h2>
+        <ul className="mb-3">{ev.slots.map((sl) => (
+          <li key={sl.id} className="border-t border-stone-100 py-2 first:border-0">
+            <div className="font-medium">{sl.title}{sl.timeText ? <span className="font-normal text-stone-600"> · {sl.timeText}</span> : null} <span className="text-sm font-normal text-stone-500">({sl.signups.length}/{sl.capacity}: {sl.signups.map((x) => x.person.name).join(", ") || "noch niemand"})</span></div>
+            <details><summary className="cursor-pointer text-xs text-brand-600">Bearbeiten</summary>
+              <form action={saveSlot} className="mt-2 grid gap-2 sm:grid-cols-12"><input type="hidden" name="eventId" value={ev.id} /><input type="hidden" name="id" value={sl.id} />
+                <input name="title" defaultValue={sl.title} required className="input sm:col-span-4" /><input name="timeText" defaultValue={sl.timeText ?? ""} placeholder="Zeit" className="input sm:col-span-3" />
+                <input name="capacity" type="number" min={1} defaultValue={sl.capacity} className="input sm:col-span-2" /><input name="description" defaultValue={sl.description ?? ""} placeholder="Beschreibung" className="input sm:col-span-12" />
+                <button className="btn-light sm:col-span-3">Speichern</button></form>
+              <form action={deleteSlot} className="mt-1"><input type="hidden" name="id" value={sl.id} /><input type="hidden" name="eventId" value={ev.id} /><button className="btn-danger">Slot löschen</button></form>
+            </details></li>))}</ul>
+        <form action={saveSlot} className="grid gap-2 sm:grid-cols-12"><input type="hidden" name="eventId" value={ev.id} />
+          <input name="title" required placeholder="z. B. Getränkeausgabe" className="input sm:col-span-4" /><input name="timeText" placeholder="14:00–16:00" className="input sm:col-span-3" />
+          <input name="capacity" type="number" min={1} defaultValue={2} title="Plätze" className="input sm:col-span-2" /><input name="description" placeholder="Beschreibung (optional)" className="input sm:col-span-12" />
+          <button className="btn sm:col-span-3">Slot anlegen</button></form>
+      </section>
+
+      <section className="card mb-4">
+        <h2 className="mb-2 font-semibold">Zu- und Absagen</h2>
+        {(() => { const c = (st: string) => ev.rsvps.filter((r) => r.status === st); const pax = c("JA").reduce((a, r) => a + 1 + r.guests, 0);
+          return <><p className="text-sm text-stone-700">✅ {c("JA").length} Zusagen ({pax} Personen inkl. Begleitung) · ❓ {c("VIELLEICHT").length} vielleicht · ❌ {c("NEIN").length} Absagen</p>
+            <p className="mt-1 text-sm text-stone-600">{c("JA").map((r) => `${r.person.name}${r.guests ? ` +${r.guests}` : ""}`).join(", ")}</p></>; })()}
+        {!ev.published && <p className="mt-2 text-xs text-amber-700">Die Veranstaltung ist noch ein Entwurf – Bewohner sehen sie erst nach Veröffentlichung.</p>}
+      </section>
+
+      <section className="card mb-4">
         <h2 className="mb-2 font-semibold">Lessons Learned</h2>
         <form action={saveLessons}><input type="hidden" name="id" value={ev.id} />
           <textarea name="lessonsLearned" rows={5} defaultValue={ev.lessonsLearned ?? ""} placeholder="Was lief gut? Was machen wir nächstes Mal anders?" className="input" />
@@ -106,6 +165,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
           <div><label className="label">Ort</label><input name="location" defaultValue={ev.location ?? ""} className="input" /></div>
           <div><label className="label">Status</label><select name="status" defaultValue={ev.status} className="input">{EVENT_STATUS.map((s) => <option key={s} value={s}>{EVENT_LABEL[s]}</option>)}</select></div>
           <div className="sm:col-span-2"><label className="label">Beschreibung</label><textarea name="description" defaultValue={ev.description ?? ""} rows={2} className="input" /></div>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="published" defaultChecked={ev.published} /> Für Bewohner veröffentlichen (Titel, Datum, Ort, Beschreibung, Helfer-Slots, Zu-/Absage – keine Aufgaben)</label>
           <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="shift" /> Bei Datumsänderung alle Fristen mitverschieben</label>
           <button className="btn w-fit">Speichern</button></form>
         <form action={deleteEvent} className="mt-4"><input type="hidden" name="id" value={ev.id} /><button className="btn-danger">Veranstaltung löschen</button></form>

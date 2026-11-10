@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PageTitle } from "@/components/ui";
 import { createTemplate } from "./actions";
 
 export default async function Vorlagen() {
+  await requireUser("ORGANISATOR");
   const list = await db.template.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { tasks: true, milestones: true } } } });
   return (
     <>
