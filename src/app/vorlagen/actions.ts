@@ -46,6 +46,7 @@ export async function saveTplTask(fd: FormData) {
     description: String(fd.get("description") ?? "").trim() || null,
     offsetDays: off.parse(fd.get("offsetDays")),
     milestoneId: ms || null,
+    areaId: Number(fd.get("areaId")) || null,
   };
   if (id) await db.templateTask.update({ where: { id }, data });
   else await db.templateTask.create({ data: { ...data, templateId, sort: await db.templateTask.count({ where: { templateId } }) } });
@@ -54,5 +55,18 @@ export async function saveTplTask(fd: FormData) {
 export async function deleteTplTask(fd: FormData) {
   await requireUser("ORGANISATOR");
   await db.templateTask.delete({ where: { id: Number(fd.get("id")) } });
+  revalidatePath(`/vorlagen/${fd.get("templateId")}`);
+}
+
+export async function saveTplArea(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  const templateId = Number(fd.get("templateId"));
+  const name = z.string().trim().min(1).max(60).parse(fd.get("name"));
+  await db.templateArea.upsert({ where: { templateId_name: { templateId, name } }, update: {}, create: { templateId, name, sort: await db.templateArea.count({ where: { templateId } }) } });
+  revalidatePath(`/vorlagen/${templateId}`);
+}
+export async function deleteTplArea(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  await db.templateArea.delete({ where: { id: Number(fd.get("id")) } });
   revalidatePath(`/vorlagen/${fd.get("templateId")}`);
 }

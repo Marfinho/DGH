@@ -26,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Hauptpunkte (Handy: Tab-Leiste, Rest unter „Mehr“)
   const main: NavItem[] = [{ href: "/", label: "Start" }, { href: "/veranstaltungen", label: "Termine" }, { href: "/meine-aufgaben", label: "Aufgaben" }];
   const more: NavItem[] = [{ href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine & Kontakte" }, { href: "/muell", label: "Müllkalender" }];
-  if (u && hasRole(u, "ORGANISATOR")) more.push({ href: "/vorlagen", label: "Vorlagen" });
+  if (u && hasRole(u, "ORGANISATOR")) more.push({ href: "/vorlagen", label: "Vorlagen" }, { href: "/archiv", label: "Archiv" });
   if (u && hasRole(u, "ADMIN")) more.push({ href: "/personen", label: "Personen" });
   return (
     <html lang="de">

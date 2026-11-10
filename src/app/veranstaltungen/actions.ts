@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser, hasRole } from "@/lib/auth";
 import { sendPush } from "@/lib/push";
+import { removeStored } from "@/lib/files";
 import { db, logActivity } from "@/lib/db";
 import { parseDay, addDays, diffDays } from "@/lib/dates";
 import { createEventFromTemplate, saveEventAsTemplate } from "@/lib/template";
@@ -53,6 +54,8 @@ export async function saveLessons(fd: FormData) {
 
 export async function deleteEvent(fd: FormData) {
   await requireUser("ORGANISATOR");
+  for (const a of await db.attachment.findMany({ where: { eventId: Number(fd.get("id")) } })) await removeStored(a.storedName);
+  await requireUser("ORGANISATOR");
   await db.event.delete({ where: { id: Number(fd.get("id")) } });
   redirect("/veranstaltungen");
 }
@@ -80,7 +83,7 @@ export async function saveTask(fd: FormData) {
     title: title.parse(fd.get("title")), description: opt(fd.get("description")),
     dueDate: parseDay(String(fd.get("dueDate"))),
     status: z.enum(TASK_STATUS).default("OFFEN").parse(fd.get("status") || undefined),
-    assigneeId: Number(fd.get("assigneeId")) || null, milestoneId: Number(fd.get("milestoneId")) || null,
+    assigneeId: Number(fd.get("assigneeId")) || null, milestoneId: Number(fd.get("milestoneId")) || null, areaId: Number(fd.get("areaId")) || null,
   };
   const before = id ? await db.task.findUnique({ where: { id } }) : null;
   if (id) await db.task.update({ where: { id }, data });
@@ -136,4 +139,47 @@ export async function deleteSlot(fd: FormData) {
   const eventId = Number(fd.get("eventId"));
   await db.helperSlot.delete({ where: { id: Number(fd.get("id")) } });
   refresh(eventId);
+}
+
+export async function saveArea(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  const eventId = Number(fd.get("eventId")), id = Number(fd.get("id"));
+  const name = z.string().trim().min(1).max(60).parse(fd.get("name"));
+  const leadId = Number(fd.get("leadId")) || null;
+  const dup = await db.area.findUnique({ where: { eventId_name: { eventId, name } } });
+  if (dup && dup.id !== id) redirect(`/veranstaltungen/${eventId}?fehler=gebiet`);
+  if (id) await db.area.update({ where: { id }, data: { name, leadId } });
+  else await db.area.create({ data: { eventId, name, sort: await db.area.count({ where: { eventId } }) } });
+  await logActivity(eventId, `Themengebiet „${name}“ ${id ? "geändert" : "angelegt"}`);
+  refresh(eventId);
+}
+export async function deleteArea(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  const eventId = Number(fd.get("eventId"));
+  const a = await db.area.findUniqueOrThrow({ where: { id: Number(fd.get("id")) } });
+  if (a.eventId !== eventId) throw new Error("Falsche Veranstaltung");
+  await db.area.delete({ where: { id: a.id } });
+  await logActivity(eventId, `Themengebiet „${a.name}“ gelöscht (Aufgaben bleiben ohne Gebiet)`);
+  refresh(eventId);
+}
+export async function seedAreas(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  const eventId = Number(fd.get("eventId"));
+  const have = new Set((await db.area.findMany({ where: { eventId } })).map((a) => a.name));
+  const names = ["Organisation", "Marketing & Presse", "Programm", "Technik & Aufbau", "Verpflegung", "Finanzen"].filter((n) => !have.has(n));
+  for (const [i, name] of names.entries()) await db.area.create({ data: { eventId, name, sort: have.size + i } });
+  await logActivity(eventId, "Standard-Themengebiete angelegt");
+  refresh(eventId);
+}
+
+/** Schnelländerung direkt in der Aufgabenliste (Zuständige/r bzw. Themengebiet). */
+export async function quickAssign(fd: FormData) {
+  const me = await requireUser("ORGANISATOR");
+  const t = await db.task.findUniqueOrThrow({ where: { id: Number(fd.get("id")) } });
+  const assigneeId = Number(fd.get("assigneeId")) || null;
+  await db.task.update({ where: { id: t.id }, data: { assigneeId } });
+  await logActivity(t.eventId, `„${t.title}“ zugewiesen an ${assigneeId ? (await db.person.findUnique({ where: { id: assigneeId } }))?.name : "niemand"} (${me.name})`);
+  if (assigneeId && assigneeId !== t.assigneeId) await sendPush({ title: "Neue Aufgabe für dich", body: t.title, url: "/meine-aufgaben" }, [assigneeId]).catch(() => {});
+  refresh(t.eventId);
+  revalidatePath("/meine-aufgaben");
 }

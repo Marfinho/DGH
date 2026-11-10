@@ -6,7 +6,7 @@ import { logout } from "../login/actions";
 export default async function Mehr() {
   const me = await requireUser();
   const links: [string, string][] = [["/neuigkeiten", "Neuigkeiten"], ["/gruppen", "Vereine & Kontakte"], ["/muell", "Müllkalender"], ["/profil", "Mein Profil"]];
-  if (hasRole(me, "ORGANISATOR")) links.push(["/vorlagen", "Vorlagen"]);
+  if (hasRole(me, "ORGANISATOR")) links.push(["/vorlagen", "Vorlagen"], ["/archiv", "Archiv & Jahresübersicht"]);
   if (hasRole(me, "ADMIN")) links.push(["/personen", "Personen & Zugänge"]);
   return (
     <>

@@ -5,6 +5,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: file:/data/dorfplaner.db
+      UPLOAD_DIR: /data/uploads
     volumes:
       - dorfplaner-data:/data
     expose: ["3000"]
@@ -22,6 +23,29 @@ services:
           if [ $$next -le $$now ]; then next=$$((next+86400)); fi
           sleep $$((next-now))
           curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/reminders || true
+        done
+    depends_on: [app]
+
+  # Tägliches Backup (~3 Uhr) in das Volume: letzte 14 DB-Snapshots + Spiegel der Uploads.
+  # Wichtig: zusätzlich regelmäßig extern sichern (siehe README)!
+  backup:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/data/dorfplaner.db
+      UPLOAD_DIR: /data/uploads
+      BACKUP_DIR: /data/backups
+    volumes:
+      - dorfplaner-data:/data
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          now=$$(date +%s); next=$$(( (now/86400)*86400 + 2*3600 ))
+          if [ $$next -le $$now ]; then next=$$((next+86400)); fi
+          sleep $$((next-now))
+          npx tsx prisma/backup.ts || true
         done
     depends_on: [app]
 

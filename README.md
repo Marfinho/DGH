@@ -19,6 +19,12 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 
 **Freigeber pro Termin:** Für jede Veranstaltung können Personen (auch normale Bewohner) als *Freigeber* benannt werden. Sie sehen nur das Budget dieses Termins und geben Ausgaben frei oder lehnen sie (mit Begründung) ab. Ablauf einer Ausgabe: *Geplant → Zur Freigabe → Freigegeben/Abgelehnt → Bezahlt*. Eigene Anfragen kann niemand selbst freigeben (Vier-Augen-Prinzip, gilt auch für Admins); Beträge bis zu einer einstellbaren Grenze brauchen keine Freigabe. Wird ein freigegebener Betrag geändert, ist die Freigabe wieder offen. Freigeber und Antragsteller bekommen Push-Nachrichten, offene Freigaben stehen auf der Startseite. Budget-Posten werden mit der Vorlage übernommen (ohne Freigaben).
 
+**Themengebiete:** Jede Veranstaltung kann in Bereiche wie *Marketing & Presse*, *Technik & Aufbau* oder *Verpflegung* gegliedert werden (eigene Gebiete oder Standardset; Vorlagen bringen ihre Gebiete mit). Aufgaben und Budgetposten werden einem Gebiet zugeordnet, jedes Gebiet hat optional eine Leitung. Die Aufgabenliste lässt sich per Klick nach Gebiet filtern, das Budget zeigt Teilsummen je Gebiet. Zuständige lassen sich direkt in der Liste per Auswahl ändern (auch am Handy).
+
+**Dateien:** Pro Veranstaltung (Genehmigungen, Flyer, Pläne) und als Beleg an Budgetposten (PDF, Bilder, Office; max. 10 MB; Inhalt wird gegen die Endung geprüft). Dateien sind standardmäßig nur für die Orga sichtbar; bei veröffentlichten Veranstaltungen kann man einzelne für Bewohner freigeben. Belege sehen nur Orga und Freigeber. Die Dateien liegen im Volume (`UPLOAD_DIR`) unter Zufallsnamen und werden nur über die geprüfte Download-Route ausgeliefert.
+
+**Archiv & Jahresübersicht:** (Orga) vergangene Veranstaltungen nach Jahr mit Aufgaben-Quote, Gästen, Ausgaben, Ergebnis und Lessons Learned; Jahresvergleich über alle Jahre und Veränderung gegenüber dem Vorgänger derselben Vorlage.
+
 Aufgaben und Änderungsprotokoll sehen nur Organisatoren; Bewohner sehen nur ihre eigenen Aufgaben. Neue Veranstaltungen sind zunächst **Entwürfe** und erscheinen für Bewohner erst nach „Veröffentlichen“.
 
 ## Lokal entwickeln
@@ -43,12 +49,20 @@ docker compose exec app npm run db:seed      # optional
 ```
 Caddy holt automatisch Let's-Encrypt-Zertifikate (DNS muss auf den VPS zeigen). Der Dienst `reminders` löst täglich ~7–8 Uhr die Push-Erinnerungen aus. Push funktioniert nur über HTTPS; auf dem iPhone erst „Zum Home-Bildschirm“.
 
-## Updates & Backup
+## Updates
 ```bash
 git pull && docker compose up -d --build     # Migrationen laufen beim Start
-docker compose exec app cp /data/dorfplaner.db /data/backup.db
-docker compose cp app:/data/backup.db ./backup-$(date +%F).db
 ```
+
+## Backup
+Der Compose-Dienst `backup` läuft täglich gegen 3 Uhr und legt im Volume unter `/data/backups` ab: einen konsistenten Datenbank-Snapshot (`dorfplaner-JJJJ-MM-TT.db`, die letzten 14 bleiben) und einen Spiegel aller Uploads (`uploads/`). Manuell: `docker compose exec backup npx tsx prisma/backup.ts`. Admins können den DB-Snapshot außerdem unter „Personen“ herunterladen.
+
+**Wichtig:** Das Volume liegt auf demselben Server – bitte zusätzlich extern sichern, z. B. per Cronjob auf dem VPS:
+```bash
+docker run --rm -v dorfplaner_dorfplaner-data:/data -v "$PWD":/out alpine tar czf /out/dorfplaner-$(date +%F).tgz -C /data backups
+# danach per rsync/rclone/scp auf einen anderen Rechner kopieren
+```
+Wiederherstellen: Dienste stoppen, gewünschte `.db` als `/data/dorfplaner.db` zurückkopieren, `uploads/` nach `/data/uploads/`, Dienste starten.
 
 ## Datenschutz (DSGVO)
 - Gespeichert werden Name, freiwillig E-Mail/Telefon, Rolle, Zu-/Absagen, Helfer-Einträge, Push-Abos. Kein Tracking, keine externen Fonts/CDNs (Schriften Barlow, Barlow Condensed und Kaushan Script liegen lokal im Build), keine Cookies außer dem Sitzungs-Cookie.

@@ -13,6 +13,7 @@ ENV NODE_ENV=production DATABASE_URL=file:/data/dorfplaner.db
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/src/lib/backup.ts ./src/lib/backup.ts
 COPY --from=build /app/package.json ./
 EXPOSE 3000
 # Migrationen anwenden, dann starten

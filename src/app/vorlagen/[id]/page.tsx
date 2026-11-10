@@ -4,12 +4,12 @@ import { db } from "@/lib/db";
 import { relativeLabel } from "@/lib/dates";
 import { PageTitle } from "@/components/ui";
 import { formatMoney } from "@/lib/money";
-import { updateTemplate, deleteTemplate, saveTplMilestone, deleteTplMilestone, saveTplTask, deleteTplTask } from "../actions";
+import { updateTemplate, deleteTemplate, saveTplMilestone, deleteTplMilestone, saveTplTask, deleteTplTask, saveTplArea, deleteTplArea } from "../actions";
 
 export default async function VorlageDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireUser("ORGANISATOR");
   const id = Number((await params).id);
-  const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } }, budgetItems: { orderBy: { id: "asc" } } } });
+  const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } }, budgetItems: { orderBy: { id: "asc" } }, areas: { orderBy: { sort: "asc" } } } });
   if (!t) notFound();
 
   const taskForm = (task: (typeof t.tasks)[number] | null) => (
@@ -22,7 +22,8 @@ export default async function VorlageDetail({ params }: { params: Promise<{ id: 
         <option value="">– kein Meilenstein –</option>
         {t.milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
       </select>
-      <input name="description" defaultValue={task?.description ?? ""} placeholder="Notiz" className="input sm:col-span-3" />
+      <select name="areaId" defaultValue={task?.areaId ?? ""} className="input sm:col-span-3" aria-label="Themengebiet"><option value="">– kein Themengebiet –</option>{t.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+      <input name="description" defaultValue={task?.description ?? ""} placeholder="Notiz" className="input sm:col-span-7" />
       <button className={`${task ? "btn-light" : "btn"} sm:col-span-2`}>{task ? "Speichern" : "Aufgabe hinzufügen"}</button>
     </form>
   );
@@ -60,7 +61,16 @@ export default async function VorlageDetail({ params }: { params: Promise<{ id: 
         </form>
       </div>
 
-      <h2 className="mb-2 ">Aufgaben</h2>
+      <h2 className="mb-2">Themengebiete</h2>
+      <div className="card mb-6">
+        <ul className="mb-2 flex flex-wrap gap-2">{t.areas.map((a) => (
+          <li key={a.id} className="flex items-center gap-2 rounded-md bg-brand-50 px-3 py-1.5 font-semibold">{a.name}
+            <form action={deleteTplArea}><input type="hidden" name="id" value={a.id} /><input type="hidden" name="templateId" value={t.id} /><button aria-label={`${a.name} entfernen`} className="text-poster">✕</button></form></li>))}
+          {!t.areas.length && <li className="text-sm text-stone-500">Noch keine Themengebiete.</li>}</ul>
+        <form action={saveTplArea} className="flex gap-2"><input type="hidden" name="templateId" value={t.id} /><input name="name" required placeholder="z. B. Marketing" className="input flex-1" /><button className="btn">Hinzufügen</button></form>
+      </div>
+
+      <h2 className="mb-2">Aufgaben</h2>
       <div className="space-y-3">
         {t.tasks.map((task) => (
           <div key={task.id} className="card flex flex-wrap items-start gap-2">

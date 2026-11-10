@@ -10,7 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "admin": "tsx prisma/admin.ts"
+    "admin": "tsx prisma/admin.ts",
+    "backup": "tsx prisma/backup.ts"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

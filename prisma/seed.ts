@@ -11,6 +11,20 @@ async function tpl(name: string, description: string, ms: M[], ts: T[]) {
     await db.templateTask.create({ data: { templateId: t.id, title, offsetDays, sort: i, description, milestoneId: m === null ? null : ids[m] } });
 }
 
+// Themengebiete nachrüsten (auch für bereits vorhandene Vorlagen): Zuordnung per Stichwort im Aufgabentitel
+const AREAS: Record<string, [string, RegExp][]> = {
+  Dorffest: [["Organisation", /Termin|Budget|Genehmigung|Kasse|Danke/i], ["Marketing & Presse", /Plakat|Helfer-Aufruf|Ankündigung/i], ["Programm", /Musik|Programm/i], ["Verpflegung", /Getränke|Essen/i], ["Technik & Aufbau", /Technik|Aufbau|Abbau|Müll/i]],
+  Laternenumzug: [["Organisation", /Termin|Route|Danke/i], ["Sicherheit", /Feuerwehr|Polizei|Streckenposten|Wegstrecke/i], ["Programm", /Musik/i], ["Marketing & Presse", /Bekanntmachung/i]],
+};
+async function addAreas(name: string) {
+  const t = await db.template.findFirst({ where: { name }, include: { areas: true, tasks: true } });
+  if (!t || t.areas.length) return;
+  for (const [i, [an, re]] of AREAS[name].entries()) {
+    const a = await db.templateArea.create({ data: { templateId: t.id, name: an, sort: i } });
+    for (const task of t.tasks) if (!task.areaId && re.test(task.title)) await db.templateTask.update({ where: { id: task.id }, data: { areaId: a.id } });
+  }
+}
+
 async function main() {
   await tpl("Dorffest", "Großes Fest für das ganze Dorf",
     [["Planung steht", -90], ["Organisation abgeschlossen", -30], ["Aufbau", -1], ["Nachbereitung", 7]],
@@ -21,5 +35,6 @@ async function main() {
     [["Vorbereitung", -30], ["Umzugstag", 0]],
     [["Termin und Route festlegen", -60, 0], ["Feuerwehr und Polizei informieren", -45, 0], ["Musikbegleitung anfragen", -30, 0], ["Bekanntmachung in Kita/Schule", -21, 0],
      ["Streckenposten einteilen", -7, 1], ["Wegstrecke abgehen", -2, 1], ["Aufräumen und Danke sagen", 1, null]]);
+  for (const n of Object.keys(AREAS)) await addAreas(n);
 }
 main().finally(() => db.$disconnect());

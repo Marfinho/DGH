@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 export default {
   poweredByHeader: false,
+  experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {
     return [{ source: "/:path*", headers: [
       { key: "X-Content-Type-Options", value: "nosniff" },

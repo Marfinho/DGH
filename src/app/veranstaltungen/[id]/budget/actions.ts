@@ -39,7 +39,9 @@ export async function saveItem(fd: FormData) {
   const id = Number(fd.get("id"));
   const d = z.object({ kind: z.enum(BUDGET_KIND), title: z.string().trim().min(1).max(200) }).parse(Object.fromEntries(fd));
   const planned = money(fd.get("planned"));
-  const data = { kind: d.kind, title: d.title, category: optText(fd.get("category"), 60), note: optText(fd.get("note"), 500), plannedCents: planned };
+  const areaId = Number(fd.get("areaId")) || null;
+  if (areaId && (await db.area.count({ where: { id: areaId, eventId } })) === 0) throw new Error("Themengebiet gehört zu einer anderen Veranstaltung");
+  const data = { kind: d.kind, title: d.title, areaId, category: optText(fd.get("category"), 60), note: optText(fd.get("note"), 500), plannedCents: planned };
   if (id) {
     const old = await loadItem(id, eventId);
     // Betrag oder Titel nach Beantragung/Freigabe geändert -> Freigabe wird zurückgesetzt

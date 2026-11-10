@@ -17,6 +17,7 @@ export default async function Personen() {
         Lege Personen an und erzeuge einen <b>Einladungscode</b> (einmalig, 7 Tage gültig) – damit melden sie sich erstmals an. Danach geht es auch per E-Mail-Link, wenn eine Adresse hinterlegt ist.
         Löschen entfernt die Person vollständig; ihre Aufgaben bleiben ohne Zuständigen bestehen.
       </p>
+      <p className="mb-4"><a href="/api/backup" className="btn-light">Datenbank-Backup herunterladen</a> <span className="ml-2 text-sm text-stone-600">Ein automatisches Backup läuft täglich auf dem Server (siehe README).</span></p>
       <form action={savePerson} className="card mb-6 grid gap-3 sm:grid-cols-5">
         <div><label className="label">Name *</label><input name="name" required className="input" /></div>
         <div><label className="label">E-Mail</label><input name="email" type="email" className="input" /></div>

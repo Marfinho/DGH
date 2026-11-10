@@ -28,6 +28,8 @@ model Person {
   decidedItems   BudgetItem[]       @relation("decided")
   pushSubs       PushSubscription[]
   newsPosts      NewsPost[]
+  areas          Area[]
+  attachments    Attachment[]
 }
 
 model Session {
@@ -149,6 +151,7 @@ model Template {
   tasks       TemplateTask[]
   events      Event[]
   budgetItems TemplateBudgetItem[]
+  areas       TemplateArea[]
 }
 
 model TemplateMilestone {
@@ -171,6 +174,8 @@ model TemplateTask {
   description String?
   offsetDays  Int
   sort        Int                @default(0)
+  areaId      Int?
+  area        TemplateArea?      @relation(fields: [areaId], references: [id], onDelete: SetNull)
 }
 
 model Event {
@@ -195,6 +200,8 @@ model Event {
   approvalLimitCents Int           @default(0) // Ausgaben bis zu diesem Betrag brauchen keine Freigabe
   budgetItems        BudgetItem[]
   members            EventMember[]
+  areas              Area[]
+  attachments        Attachment[]
 }
 
 model Milestone {
@@ -219,6 +226,8 @@ model Task {
   status      String     @default("OFFEN")
   assigneeId  Int?
   assignee    Person?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  areaId      Int?
+  area        Area?      @relation(fields: [areaId], references: [id], onDelete: SetNull)
   sort        Int        @default(0)
 }
 
@@ -245,32 +254,80 @@ model EventMember {
 // kind: AUSGABE | EINNAHME
 // status Ausgabe: ENTWURF -> BEANTRAGT -> FREIGEGEBEN | ABGELEHNT -> BEZAHLT;  Einnahme: ENTWURF (erwartet) -> BEZAHLT (eingegangen)
 model BudgetItem {
-  id            Int       @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   eventId       Int
-  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   kind          String
   title         String
   category      String?
   plannedCents  Int
   actualCents   Int?
-  status        String    @default("ENTWURF")
+  status        String       @default("ENTWURF")
   note          String?
   requestedById Int?
-  requestedBy   Person?   @relation("requested", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedBy   Person?      @relation("requested", fields: [requestedById], references: [id], onDelete: SetNull)
   decidedById   Int?
-  decidedBy     Person?   @relation("decided", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedBy     Person?      @relation("decided", fields: [decidedById], references: [id], onDelete: SetNull)
   decidedAt     DateTime?
   decisionNote  String?
   paidAt        DateTime?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime     @default(now())
+  areaId        Int?
+  area          Area?        @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  attachments   Attachment[]
 }
 
 model TemplateBudgetItem {
-  id           Int      @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   templateId   Int
-  template     Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template     Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
   kind         String
   title        String
   category     String?
   plannedCents Int
+  areaId       Int?
+  area         TemplateArea? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+}
+
+// Themengebiet einer Veranstaltung (z. B. Marketing, Technik, Verpflegung) mit optionaler Leitung
+model Area {
+  id          Int          @id @default(autoincrement())
+  eventId     Int
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  leadId      Int?
+  lead        Person?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  sort        Int          @default(0)
+  tasks       Task[]
+  budgetItems BudgetItem[]
+
+  @@unique([eventId, name])
+}
+
+model TemplateArea {
+  id          Int                  @id @default(autoincrement())
+  templateId  Int
+  template    Template             @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name        String
+  sort        Int                  @default(0)
+  tasks       TemplateTask[]
+  budgetItems TemplateBudgetItem[]
+
+  @@unique([templateId, name])
+}
+
+model Attachment {
+  id           Int         @id @default(autoincrement())
+  eventId      Int
+  event        Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  budgetItemId Int?
+  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+  name         String // Originalname (nur zur Anzeige)
+  storedName   String      @unique // Zufallsname auf der Platte
+  mime         String
+  size         Int
+  visible      Boolean     @default(false) // für Bewohner sichtbar (nur bei veröffentlichter Veranstaltung)
+  uploadedById Int?
+  uploadedBy   Person?     @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
 }
