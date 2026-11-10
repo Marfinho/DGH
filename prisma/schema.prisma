@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Status als String (SQLite kennt keine Enums); Werte siehe src/lib/constants.ts
+model Person {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  tasks     Task[]
+}
+
+model Template {
+  id          Int                 @id @default(autoincrement())
+  name        String
+  description String?
+  updatedAt   DateTime            @updatedAt
+  milestones  TemplateMilestone[]
+  tasks       TemplateTask[]
+  events      Event[]
+}
+
+model TemplateMilestone {
+  id         Int            @id @default(autoincrement())
+  templateId Int
+  template   Template       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title      String
+  offsetDays Int // Tage relativ zum Veranstaltungstag (negativ = davor)
+  sort       Int            @default(0)
+  tasks      TemplateTask[]
+}
+
+model TemplateTask {
+  id          Int                @id @default(autoincrement())
+  templateId  Int
+  template    Template           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  milestoneId Int?
+  milestone   TemplateMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  offsetDays  Int
+  sort        Int                @default(0)
+}
+
+model Event {
+  id             Int           @id @default(autoincrement())
+  title          String
+  date           DateTime // Kalendertag, UTC-Mitternacht
+  location       String?
+  description    String?
+  status         String        @default("GEPLANT")
+  templateId     Int?
+  template       Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  lessonsLearned String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  milestones     Milestone[]
+  tasks          Task[]
+  log            ActivityLog[]
+}
+
+model Milestone {
+  id      Int      @id @default(autoincrement())
+  eventId Int
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title   String
+  dueDate DateTime
+  sort    Int      @default(0)
+  tasks   Task[]
+}
+
+model Task {
+  id          Int        @id @default(autoincrement())
+  eventId     Int
+  event       Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  milestoneId Int?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  dueDate     DateTime
+  status      String     @default("OFFEN")
+  assigneeId  Int?
+  assignee    Person?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  sort        Int        @default(0)
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  eventId   Int?
+  event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+}

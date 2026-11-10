@@ -1,0 +1,8 @@
+{$DOMAIN} {
+	encode gzip
+	# Stufe 1: gemeinsamer Zugang für das Orga-Team (wird durch den Login in Stufe 2 ersetzt)
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+	reverse_proxy app:3000
+}
