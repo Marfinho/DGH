@@ -24,10 +24,9 @@ export const viewport: Viewport = { themeColor: "#0B4F2A", width: "device-width"
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const u = await getUser();
   // Hauptpunkte (Handy: Tab-Leiste, Rest unter „Mehr“)
-  const main: NavItem[] = [{ href: "/", label: "Start" }, { href: "/veranstaltungen", label: "Termine" }, { href: "/meine-aufgaben", label: "Aufgaben" }];
-  const more: NavItem[] = [{ href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine & Kontakte" }, { href: "/muell", label: "Müllkalender" }];
-  if (u && hasRole(u, "ORGANISATOR")) more.push({ href: "/vorlagen", label: "Vorlagen" }, { href: "/archiv", label: "Archiv" });
-  if (u && hasRole(u, "ADMIN")) more.push({ href: "/personen", label: "Personen" });
+  // Handy: Tab-Leiste mit den Hauptpunkten, alles andere unter „Mehr“. Desktop: erweiterte Kopfzeile.
+  const main: NavItem[] = [{ href: "/", label: "Start" }, { href: "/veranstaltungen", label: "Termine" }, { href: "/meine-aufgaben", label: "Aufgaben" }, { href: "/brett", label: "Brett" }];
+  const top: NavItem[] = [...main, { href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine" }, { href: "/muell", label: "Müll" }, { href: "/anliegen", label: "Anliegen" }, { href: "/mehr", label: "Mehr" }];
   return (
     <html lang="de">
       <body className="min-h-screen">
@@ -36,7 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Link href="/" aria-label="Dorfplaner Startseite" className="shrink-0">
               <img src="/logo.png" alt="Dorfgemeinschaft Haste" width={770} height={220} className="h-10 w-auto md:h-12" />
             </Link>
-            {u && <TopNav items={[...main, ...more]} />}
+            {u && <TopNav items={top} />}
             {u && (
               <span className="ml-auto flex items-center gap-3 text-sm font-semibold">
                 <Link href="/profil" className="hidden text-ink hover:text-brand-600 sm:inline">{u.name}</Link>

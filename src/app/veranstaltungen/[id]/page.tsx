@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser, hasRole } from "@/lib/auth";
 import { setRsvp, joinSlot, leaveSlot } from "../mitmachen";
 import { budgetAccess } from "@/lib/budget-access";
+import { canManageGroup } from "@/lib/group-access";
 import { formatSize } from "@/lib/files";
 import { uploadFile, deleteFile, toggleVisible } from "../dateien";
 import { summarize } from "@/lib/budget";
@@ -19,7 +20,7 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
   const { gebiet, datei, fehler } = await searchParams;
   const id = Number((await params).id);
   const [ev, people, templates] = await Promise.all([
-    db.event.findUnique({ where: { id }, include: { slots: { orderBy: { id: "asc" }, include: { signups: { include: { person: true } } } }, rsvps: { include: { person: true } }, attachments: { where: { budgetItemId: null }, orderBy: { createdAt: "desc" }, include: { uploadedBy: true } }, milestones: { orderBy: { dueDate: "asc" } }, areas: { orderBy: [{ sort: "asc" }, { name: "asc" }], include: { lead: true } }, tasks: { orderBy: [{ dueDate: "asc" }, { sort: "asc" }], include: { assignee: true, area: true } }, log: { orderBy: { createdAt: "desc" }, take: 15 } } }),
+    db.event.findUnique({ where: { id }, include: { group: true, slots: { orderBy: { id: "asc" }, include: { signups: { include: { person: true } } } }, rsvps: { include: { person: true } }, attachments: { where: { budgetItemId: null }, orderBy: { createdAt: "desc" }, include: { uploadedBy: true } }, milestones: { orderBy: { dueDate: "asc" } }, areas: { orderBy: [{ sort: "asc" }, { name: "asc" }], include: { lead: true } }, tasks: { orderBy: [{ dueDate: "asc" }, { sort: "asc" }], include: { assignee: true, area: true } }, log: { orderBy: { createdAt: "desc" }, take: 15 } } }),
     db.person.findMany({ orderBy: { name: "asc" } }),
     db.template.findMany({ orderBy: { name: "asc" } }),
   ]);
@@ -37,12 +38,13 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
     </section>
   );
   if (!hasRole(me, "ORGANISATOR")) {
-    if (!acc.isFreigeber && (!ev.published || ev.status === "ARCHIVIERT")) notFound();
+    const isVorstand = ev.groupId ? await canManageGroup(ev.groupId, me) : false;
+    if (!acc.isFreigeber && !isVorstand && (!ev.published || ev.status === "ARCHIVIERT")) notFound();
     const mine = ev.rsvps.find((r) => r.personId === me.id);
     const yes = ev.rsvps.filter((r) => r.status === "JA");
     return (
       <>
-        <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""}`} title={ev.title} />
+        <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""}${ev.group ? ` · ${ev.group.name}` : ""}`} title={ev.title} />
         {ev.description && <p className="card mb-4 whitespace-pre-line">{ev.description}</p>}
         {budgetCard}
         {ev.attachments.filter((a) => a.visible).length > 0 && ev.published && (

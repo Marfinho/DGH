@@ -5,8 +5,8 @@ import { logout } from "../login/actions";
 
 export default async function Mehr() {
   const me = await requireUser();
-  const links: [string, string][] = [["/neuigkeiten", "Neuigkeiten"], ["/gruppen", "Vereine & Kontakte"], ["/muell", "Müllkalender"], ["/profil", "Mein Profil"]];
-  if (hasRole(me, "ORGANISATOR")) links.push(["/vorlagen", "Vorlagen"], ["/archiv", "Archiv & Jahresübersicht"]);
+  const links: [string, string][] = [["/neuigkeiten", "Neuigkeiten"], ["/gruppen", "Vereine & Kontakte"], ["/muell", "Müllkalender"], ["/fundbuero", "Fundbüro"], ["/anliegen", "Anliegen & Mängel melden"], ["/profil", "Mein Profil"]];
+  if (hasRole(me, "ORGANISATOR")) links.push(["/vorlagen", "Vorlagen"], ["/archiv", "Archiv & Jahresübersicht"], ["/aushang", "Aushang drucken"]);
   if (hasRole(me, "ADMIN")) links.push(["/personen", "Personen & Zugänge"]);
   return (
     <>

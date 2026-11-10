@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
 import { requireUser, hasRole } from "@/lib/auth";
 import { PageTitle } from "@/components/ui";
+import { managedGroupIds } from "@/lib/group-access";
+import Link from "next/link";
 import { saveGroup, deleteGroup, saveContact, deleteContact } from "./actions";
 
 export default async function Gruppen() {
   const me = await requireUser();
   const orga = hasRole(me, "ORGANISATOR");
+  const mine = await managedGroupIds(me);
   const [groups, loose] = await Promise.all([
     db.group.findMany({ orderBy: { name: "asc" }, include: { contacts: { orderBy: { sort: "asc" } } } }),
     db.contact.findMany({ where: { groupId: null }, orderBy: { name: "asc" } }),
@@ -33,7 +36,7 @@ export default async function Gruppen() {
       <div className="space-y-4">
         {groups.map((g) => (
           <section key={g.id} className="card">
-            <h2>{g.name}</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2>{g.name}</h2>{(mine === "all" || mine.includes(g.id)) && <Link href={`/gruppen/${g.id}`} className="btn-sun !min-h-[40px]">Vereinsbereich</Link>}</div>
             {g.meetingInfo && <p className="text-sm text-stone-600">🕒 {g.meetingInfo}</p>}
             {g.description && <p className="mt-1 whitespace-pre-line text-sm">{g.description}</p>}
             {g.website && <a href={g.website} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">🌐 {g.website}</a>}

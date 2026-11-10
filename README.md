@@ -27,6 +27,16 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 
 Aufgaben und Änderungsprotokoll sehen nur Organisatoren; Bewohner sehen nur ihre eigenen Aufgaben. Neue Veranstaltungen sind zunächst **Entwürfe** und erscheinen für Bewohner erst nach „Veröffentlichen“.
 
+## Weitere Bürger-Funktionen
+- **Schwarzes Brett** (`/brett`): Suche & Biete, Mitfahren, Leihen & Verschenken, Nachbarschaftshilfe – mit Foto, freiwilligem Kontakt (klickbar), Laufzeit (Standard 30 Tage), „erledigt“, Verlängern und Melden. Abgelaufene Beiträge verschwinden und werden nach 30 Tagen gelöscht. Die Orga moderiert gemeldete Beiträge.
+- **Fundbüro** (`/fundbuero`): gefunden/verloren, gleiche Technik wie das Brett (60 Tage).
+- **Vereinsbereich** (`/gruppen/<id>`): Die Orga benennt pro Verein einen *Vorstand*. Der pflegt Termine (erscheinen im Kalender mit Veranstalter, auch im iCal-Feed) und Neuigkeiten des Vereins selbst – ohne Zugriff auf Aufgaben, Budget oder andere Vereine. Termine mit Aufgaben/Budget kann nur die Orga löschen.
+- **Anliegen & Mängel** (`/anliegen`): Meldung mit Foto und optionalem Standort (nur nach Antippen). Sichtbar für die meldende Person und die Orga, optional für alle (gegen Doppelmeldungen). Orga setzt Status (Neu → In Bearbeitung → An Gemeinde weitergeleitet → Erledigt) und antwortet; die Person bekommt Push. Mit `MUNICIPALITY_EMAIL` in der `.env` entsteht ein Knopf, der eine vorbereitete E-Mail an die Gemeinde öffnet (es wird nichts automatisch versendet).
+- **Müll-Erinnerung:** Unter „Mein Profil“ einschalten (pro Tonnenart wählbar). Der Dienst `reminders` schickt abends (16:00 UTC ≈ 17/18 Uhr) eine Push-Nachricht, wenn am nächsten Tag abgeholt wird.
+- **Aushang (PDF)** (`/aushang`, Orga): DIN-A4 mit großer Schrift für Schaukasten/Dorfladen – kommende Termine, Müllabfuhr, Neuigkeiten, QR-Code zur App.
+
+Fotos werden beim Hochladen verkleinert und neu kodiert; dabei gehen EXIF-Daten (u. a. GPS-Standort der Kamera) verloren. Dateien liegen im Upload-Ordner (im Backup enthalten); verwaiste Dateien räumt der tägliche Lauf auf.
+
 ## App aufs Handy / Button für die Website
 Die öffentliche Seite `/installieren` („Dorfplaner aufs Handy holen“) hat einen Installationsknopf (Android/Chrome), eine Anleitung für iPhone, den Weg zur Anmeldung und einen QR-Code (`/installieren/qr.svg`, druckbar). Unter „Personen“ (Admin) steht ein fertiger Button-Code zum Einfügen in die Dorf-Website (WordPress: Block „Eigenes HTML“). `APP_URL` muss auf die öffentliche https-Adresse zeigen, sonst stimmen QR-Code und Button-Link nicht.
 

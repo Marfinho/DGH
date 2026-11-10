@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, ROLES, sha256, newInviteCode } from "@/lib/auth";
+import { removePhotosOf } from "@/lib/photos-db";
 
 const schema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -30,6 +31,7 @@ export async function deletePerson(fd: FormData) {
   const me = await requireUser("ADMIN");
   const id = Number(fd.get("id"));
   if (id === me.id) throw new Error("Du kannst dich nicht selbst löschen.");
+  await removePhotosOf({ authorId: id });
   await db.person.delete({ where: { id } });
   revalidatePath("/", "layout");
 }

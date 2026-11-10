@@ -1,14 +1,12 @@
-import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { today, addDays } from "@/lib/dates";
 import { sendPush } from "@/lib/push";
+import { cronAuthorized } from "@/lib/cron";
+import { removePhotosOf, sweepOrphans } from "@/lib/photos-db";
 
 // Täglich aufrufen, z. B.: curl -H "Authorization: Bearer $CRON_SECRET" https://DOMAIN/api/cron/reminders
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  const given = (req.headers.get("authorization") ?? "").replace(/^Bearer /, "");
-  const a = Buffer.from(given), b = Buffer.from(secret ?? "");
-  if (!secret || a.length !== b.length || !timingSafeEqual(a, b)) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(req)) return new Response("Unauthorized", { status: 401 });
 
   const t = today();
   let sent = 0;
@@ -26,5 +24,9 @@ export async function GET(req: Request) {
     const ids = new Set<number>([...e.rsvps.map((r) => r.personId), ...e.slots.flatMap((s) => s.signups.map((x) => x.personId))]);
     if (ids.size) sent += await sendPush({ title: `Morgen: ${e.title}`, body: e.location ? `Ort: ${e.location}` : "Wir freuen uns auf dich!", url: `/veranstaltungen/${e.id}` }, [...ids]);
   }
-  return Response.json({ ok: true, sent });
+  // 3) Aufräumen: Brett-Beiträge, die seit 30 Tagen abgelaufen sind, und verwaiste Dateien
+  for (const old of await db.boardPost.findMany({ where: { expiresAt: { lt: addDays(t, -30) } }, select: { id: true } })) { await removePhotosOf({ postId: old.id }); await db.boardPost.delete({ where: { id: old.id } }); }
+  const swept = await sweepOrphans();
+  await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+  return Response.json({ ok: true, sent, swept });
 }

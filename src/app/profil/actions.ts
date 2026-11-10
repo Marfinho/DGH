@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, newToken, endSession } from "@/lib/auth";
+import { removePhotosOf } from "@/lib/photos-db";
 
 export async function saveProfile(fd: FormData) {
   const me = await requireUser();
@@ -23,7 +24,17 @@ export async function renewCalendarToken() {
 export async function deleteOwnAccount() {
   const me = await requireUser();
   if (me.role === "ADMIN" && (await db.person.count({ where: { role: "ADMIN" } })) <= 1) throw new Error("Du bist der letzte Admin und kannst dein Konto nicht löschen.");
+  await removePhotosOf({ authorId: me.id });
   await db.person.delete({ where: { id: me.id } });
   await endSession();
   redirect("/login");
+}
+
+export async function saveWastePrefs(fd: FormData) {
+  const me = await requireUser();
+  const known = new Set((await db.wasteDate.findMany({ distinct: ["type"], select: { type: true } })).map((w) => w.type));
+  const chosen = fd.getAll("types").map(String).filter((t) => known.has(t));
+  const all = chosen.length === 0 || chosen.length === known.size;
+  await db.person.update({ where: { id: me.id }, data: { wastePush: fd.get("wastePush") === "on", wasteTypes: all ? null : chosen.join(",") } });
+  revalidatePath("/profil");
 }

@@ -10,7 +10,7 @@ services:
       - dorfplaner-data:/data
     expose: ["3000"]
 
-  # Ruft täglich gegen 7–8 Uhr den Erinnerungs-Endpoint auf (Push für fällige Aufgaben, Event morgen)
+  # Zeitgesteuerte Aufrufe (UTC): 06:00 Erinnerungen + Aufräumen (7–8 Uhr), 16:00 Müll-Erinnerung (17–18 Uhr)
   reminders:
     image: curlimages/curl:8.10.1
     restart: unless-stopped
@@ -19,10 +19,10 @@ services:
     command:
       - |
         while true; do
-          now=$$(date +%s); next=$$(( (now/86400)*86400 + 6*3600 ))
-          if [ $$next -le $$now ]; then next=$$((next+86400)); fi
-          sleep $$((next-now))
-          curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/reminders || true
+          now=$$(date +%s); sleep $$(( 3600 - now % 3600 + 5 ))
+          h=$$(date -u +%H)
+          if [ "$$h" = "06" ]; then curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/reminders || true; fi
+          if [ "$$h" = "16" ]; then curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/waste || true; fi
         done
     depends_on: [app]
 

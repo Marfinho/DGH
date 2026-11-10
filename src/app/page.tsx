@@ -5,6 +5,7 @@ import { today, formatDay, diffDays, addDays } from "@/lib/dates";
 import { Progress, StatusBadge, PageTitle } from "@/components/ui";
 import { setRsvp } from "./veranstaltungen/mitmachen";
 import { formatMoney } from "@/lib/money";
+import { kindLabel } from "@/lib/board";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ fehler?: string }> }) {
   const me = await requireUser();
@@ -25,6 +26,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
     where: { status: "BEANTRAGT", OR: [{ requestedById: null }, { requestedById: { not: me.id } }], ...(me.role === "ADMIN" ? {} : { event: { members: { some: { personId: me.id, role: "FREIGEBER" } } } }) },
     orderBy: { createdAt: "asc" }, take: 20, include: { event: true, requestedBy: true },
   });
+  const [newIssues, boardLatest] = await Promise.all([
+    orga ? db.issue.count({ where: { status: "NEU" } }) : Promise.resolve(0),
+    db.boardPost.findMany({ where: { expiresAt: { gt: new Date() }, status: "OFFEN" }, orderBy: { createdAt: "desc" }, take: 3, select: { id: true, title: true, category: true, kind: true } }),
+  ]);
   const open = orga ? await db.task.findMany({ where: { status: { not: "ERLEDIGT" }, event: { status: "GEPLANT" }, dueDate: { lte: addDays(t, 14) } }, orderBy: { dueDate: "asc" }, take: 40, include: { event: true, assignee: true } }) : [];
   const overdue = open.filter((x) => x.dueDate < t), soon = open.filter((x) => x.dueDate >= t);
 
@@ -91,6 +96,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
         <section className="card"><h2 className="mb-2">Müllabfuhr (14 Tage)</h2><ul className="text-sm">{waste.map((w) => <li key={w.id} className="flex gap-2 border-t border-stone-100 py-1.5 first:border-0"><span>🗑 {w.type}</span><span className="ml-auto text-stone-600">{formatDay(w.date)}</span></li>)}</ul>{!waste.length && <p className="text-sm text-stone-500">Keine Termine hinterlegt.</p>}</section>
       </div>
 
+      {newIssues > 0 && <Link href="/anliegen?status=NEU" className="card mb-4 flex items-center justify-between !border-sun !shadow-[5px_5px_0_#FFCA01]"><span className="font-display text-2xl font-extrabold uppercase text-brand-600">{newIssues} neue{newIssues === 1 ? "s" : ""} Anliegen</span><span className="btn-sun">Ansehen</span></Link>}
+      {boardLatest.length > 0 && (
+        <section className="card mb-4"><div className="mb-2 flex justify-between"><h2>Schwarzes Brett</h2><Link href="/brett" className="text-sm font-semibold text-brand-600 hover:underline">Alle →</Link></div>
+          <ul className="text-base">{boardLatest.map((b) => <li key={b.id} className="border-t-2 border-stone-200 py-1.5 first:border-0"><Link href={b.category === "FUNDBUERO" ? "/fundbuero" : "/brett"} className="font-semibold hover:text-brand-600">{b.title}</Link> <span className="text-xs text-stone-500">{kindLabel(b.category, b.kind)}</span></li>)}</ul></section>
+      )}
       <section className="card mb-4"><div className="mb-2 flex justify-between"><h2>Neuigkeiten</h2><Link href="/neuigkeiten" className="text-sm text-brand-600 hover:underline">Alle →</Link></div>
         {news.map((n) => <article key={n.id} className="border-t border-stone-100 py-2 first:border-0"><h3 className="font-medium">{n.pinned && "📌 "}{n.title}</h3><p className="line-clamp-2 whitespace-pre-line text-sm text-stone-600">{n.body}</p></article>)}
         {!news.length && <p className="text-sm text-stone-500">Noch keine Neuigkeiten.</p>}</section>
