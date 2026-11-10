@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { today, addDays } from "@/lib/dates";
 import { sendPush } from "@/lib/push";
 import { cronAuthorized } from "@/lib/cron";
+import { syncAllSources } from "@/lib/waste-sync";
 import { removePhotosOf, sweepOrphans } from "@/lib/photos-db";
 
 // Täglich aufrufen, z. B.: curl -H "Authorization: Bearer $CRON_SECRET" https://DOMAIN/api/cron/reminders
@@ -28,5 +29,6 @@ export async function GET(req: Request) {
   for (const old of await db.boardPost.findMany({ where: { expiresAt: { lt: addDays(t, -30) } }, select: { id: true } })) { await removePhotosOf({ postId: old.id }); await db.boardPost.delete({ where: { id: old.id } }); }
   const swept = await sweepOrphans();
   await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
-  return Response.json({ ok: true, sent, swept });
+  const waste = await syncAllSources(); // Müllkalender beim Entsorger abgleichen (Feiertags-Verschiebungen)
+  return Response.json({ ok: true, sent, swept, waste });
 }

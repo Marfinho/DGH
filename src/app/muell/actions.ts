@@ -2,11 +2,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, rateLimit } from "@/lib/auth";
 import { parseDay, addDays, today } from "@/lib/dates";
 import { parseIcs } from "@/lib/ics-import";
+import { lookupAwsAbo, assertAllowedUrl, AwsError } from "@/lib/aws-waste";
+import { syncSource } from "@/lib/waste-sync";
 
-export type WasteResult = { ok?: string; error?: string } | null;
+export type WasteResult = { ok?: string; error?: string; values?: Record<string, string> } | null;
 
 async function insert(rows: { type: string; date: Date }[]) {
   const existing = new Set((await db.wasteDate.findMany({ where: { type: { in: [...new Set(rows.map((r) => r.type))] } } })).map((w) => `${w.type}|${w.date.toISOString()}`));
@@ -66,4 +68,43 @@ export async function importIcsFile(_: WasteResult, fd: FormData): Promise<Waste
   const n = await insert(rows);
   const per = types.map((ty) => `${ty}: ${rows.filter((r) => r.type === ty).length}`).join(" · ");
   return { ok: `${n} neue Termine übernommen (${rows.length} in der Datei). ${per}` };
+}
+
+const lbl = (v: FormDataEntryValue | null) => String(v ?? "").trim().slice(0, 40) || null;
+
+/** Quelle über die Adresse im AWS-Portal einrichten (Ort/Straße/Hausnummer), anschließend sofort abgleichen. */
+export async function addAwsSource(_: WasteResult, fd: FormData): Promise<WasteResult> {
+  await requireUser("ORGANISATOR");
+  if (!rateLimit("aws-lookup", 10, 60 * 60_000)) return { error: "Zu viele Abfragen – bitte in einer Stunde erneut versuchen." };
+  try {
+    const a = await lookupAwsAbo({ ort: String(fd.get("ort") ?? ""), strasse: String(fd.get("strasse") ?? ""), hausnummer: String(fd.get("hausnummer") ?? ""), zusatz: String(fd.get("zusatz") ?? "") });
+    const src = await db.wasteSource.create({ data: { name: `AWS Schaumburg – ${a.address}`, label: lbl(fd.get("label")), url: a.url } });
+    const r = await syncSource(src.id);
+    revalidatePath("/", "layout");
+    return r.ok ? { ok: `Eingerichtet für ${a.address}: ${r.message}` } : { error: `Quelle angelegt, aber der Abgleich schlug fehl: ${r.message}` };
+  } catch (e) { return { error: e instanceof AwsError ? e.message : "Unerwarteter Fehler.", values: Object.fromEntries(["ort", "strasse", "hausnummer", "zusatz", "label"].map((k) => [k, String(fd.get(k) ?? "")])) }; }
+}
+
+/** Quelle über die Abo-Adresse einrichten (aus dem AWS-Portal kopiert). */
+export async function addUrlSource(_: WasteResult, fd: FormData): Promise<WasteResult> {
+  await requireUser("ORGANISATOR");
+  try {
+    const u = assertAllowedUrl(String(fd.get("url") ?? ""));
+    if (await db.wasteSource.count({ where: { url: u.toString() } })) return { error: "Diese Quelle ist schon eingerichtet." };
+    const src = await db.wasteSource.create({ data: { name: `AWS Schaumburg (Abo-Adresse)`, label: lbl(fd.get("label")), url: u.toString() } });
+    const r = await syncSource(src.id);
+    revalidatePath("/", "layout");
+    return r.ok ? { ok: r.message } : { error: `Quelle angelegt, aber der Abgleich schlug fehl: ${r.message}` };
+  } catch (e) { return { error: e instanceof AwsError ? e.message : "Unerwarteter Fehler.", values: { url: String(fd.get("url") ?? ""), label: String(fd.get("label") ?? "") } }; }
+}
+
+export async function syncNow(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  await syncSource(Number(fd.get("id")));
+  revalidatePath("/", "layout");
+}
+export async function removeSource(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  await db.wasteSource.delete({ where: { id: Number(fd.get("id")) } });
+  revalidatePath("/", "layout");
 }

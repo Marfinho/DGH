@@ -148,9 +148,11 @@ model Contact {
 }
 
 model WasteDate {
-  id   Int      @id @default(autoincrement())
-  type String // frei, z. B. Restmüll, Bio, Papier, Gelber Sack
-  date DateTime
+  id       Int          @id @default(autoincrement())
+  type     String // frei, z. B. Restmüll, Bio, Papier, Gelber Sack
+  date     DateTime
+  sourceId Int? // gesetzt = automatisch aus einer Quelle (z. B. AWS Schaumburg) synchronisiert
+  source   WasteSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
   @@unique([type, date])
 }
@@ -407,4 +409,18 @@ model Photo {
   issueId    Int?
   issue      Issue?     @relation(fields: [issueId], references: [id], onDelete: Cascade)
   createdAt  DateTime   @default(now())
+}
+
+// Automatische Quelle für den Müllkalender: iCal-Abo-Adresse des Entsorgers (nur freigegebene Hosts, siehe src/lib/aws-waste.ts)
+model WasteSource {
+  id          Int         @id @default(autoincrement())
+  name        String // z. B. "AWS Schaumburg – Dorfstr. 2, Haste"
+  label       String? // wird an die Tonnenart angehängt, wenn es mehrere Bereiche gibt
+  url         String
+  lastSyncAt  DateTime?
+  lastOk      Boolean     @default(true)
+  lastMessage String?
+  lastCount   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  dates       WasteDate[]
 }
