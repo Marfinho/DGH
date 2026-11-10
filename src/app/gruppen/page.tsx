@@ -28,12 +28,12 @@ export default async function Gruppen() {
     <>
       <PageTitle>Vereine, Gruppen &amp; Ansprechpartner</PageTitle>
       {orga && <p className="mb-4 text-sm text-stone-600">Alles, was du hier einträgst, sehen <b>alle angemeldeten Bewohner</b>. Trage Kontaktdaten daher nur mit Einverständnis der Person ein.</p>}
-      <section className="card mb-6"><h2 className="mb-1 font-semibold">Allgemeine Ansprechpartner</h2><ul>{loose.map(contact)}</ul>{!loose.length && <p className="text-sm text-stone-500">Noch keine Einträge.</p>}
+      <section className="card mb-6"><h2 className="mb-1 ">Allgemeine Ansprechpartner</h2><ul>{loose.map(contact)}</ul>{!loose.length && <p className="text-sm text-stone-500">Noch keine Einträge.</p>}
         {orga && <details className="mt-2"><summary className="cursor-pointer text-sm text-brand-600">Ansprechpartner hinzufügen</summary>{contactForm(null)}</details>}</section>
       <div className="space-y-4">
         {groups.map((g) => (
           <section key={g.id} className="card">
-            <h2 className="font-semibold">{g.name}</h2>
+            <h2>{g.name}</h2>
             {g.meetingInfo && <p className="text-sm text-stone-600">🕒 {g.meetingInfo}</p>}
             {g.description && <p className="mt-1 whitespace-pre-line text-sm">{g.description}</p>}
             {g.website && <a href={g.website} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline">🌐 {g.website}</a>}
@@ -49,7 +49,7 @@ export default async function Gruppen() {
           </section>
         ))}
       </div>
-      {orga && <form action={saveGroup} className="card mt-6 grid gap-2 sm:grid-cols-2"><h2 className="font-semibold sm:col-span-2">Neue Gruppe / neuer Verein</h2>
+      {orga && <form action={saveGroup} className="card mt-6 grid gap-2 sm:grid-cols-2"><h2 className="sm:col-span-2">Neue Gruppe / neuer Verein</h2>
         <input name="name" required placeholder="Name" className="input" /><input name="meetingInfo" placeholder="Treffen, z. B. jeden 1. Dienstag, 19:30" className="input" />
         <input name="website" placeholder="Webseite" className="input" /><textarea name="description" rows={2} placeholder="Beschreibung" className="input" /><button className="btn w-fit">Anlegen</button></form>}
     </>

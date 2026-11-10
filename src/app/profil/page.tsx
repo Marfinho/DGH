@@ -20,15 +20,15 @@ export default async function Profil() {
         <div className="flex items-end"><button className="btn">Speichern</button></div>
       </form>
 
-      <section className="card mb-4"><h2 className="mb-2 font-semibold">Benachrichtigungen</h2>
+      <section className="card mb-4"><h2 className="mb-2 ">Benachrichtigungen</h2>
         {vapid ? <PushToggle vapidKey={vapid} /> : <p className="text-sm text-stone-500">Push ist auf diesem Server noch nicht eingerichtet.</p>}</section>
 
-      <section className="card mb-4"><h2 className="mb-2 font-semibold">Kalender abonnieren (iCal)</h2>
+      <section className="card mb-4"><h2 className="mb-2 ">Kalender abonnieren (iCal)</h2>
         <p className="mb-2 text-sm text-stone-600">Enthält veröffentlichte Veranstaltungen, deine Helfer-Einsätze und deine offenen Aufgaben. Mit <code>?muell=1</code> am Ende kommt auch die Müllabfuhr dazu. <b>Der Link ist geheim</b> – gib ihn nicht weiter.</p>
         {url && <input readOnly value={url} className="input mb-2 font-mono text-xs" />}
         <form action={renewCalendarToken}><button className="btn-light">{url ? "Neuen Link erzeugen (alter wird ungültig)" : "Kalender-Link erzeugen"}</button></form></section>
 
-      <section className="card mb-4"><h2 className="mb-2 font-semibold">Meine Daten</h2>
+      <section className="card mb-4"><h2 className="mb-2 ">Meine Daten</h2>
         <div className="flex flex-wrap gap-2"><a href="/api/export" className="btn-light">Daten herunterladen (JSON)</a>
           <form action={logoutEverywhere}><button className="btn-light">Auf allen Geräten abmelden</button></form></div>
         <form action={deleteOwnAccount} className="mt-4"><p className="mb-1 text-sm text-stone-600">Dein Konto wird samt Zu-/Absagen und Helfer-Einträgen gelöscht; deine Aufgaben bleiben ohne Zuständigen bestehen.</p><button className="btn-danger">Konto endgültig löschen</button></form></section>

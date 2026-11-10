@@ -4,7 +4,7 @@ import { requireUser, hasRole } from "@/lib/auth";
 import { setRsvp, joinSlot, leaveSlot } from "../mitmachen";
 import { today, toInput, formatDay } from "@/lib/dates";
 import { EVENT_STATUS, EVENT_LABEL, TASK_STATUS, TASK_LABEL } from "@/lib/constants";
-import { StatusBadge, Progress } from "@/components/ui";
+import { StatusBadge, Progress, EventHero, OverdueBadge } from "@/components/ui";
 import { updateEvent, saveSlot, deleteSlot, saveLessons, deleteEvent, saveMilestone, deleteMilestone, saveTask, cycleTaskStatus, deleteTask, saveAsTemplate } from "../actions";
 
 export default async function EventDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -22,11 +22,10 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
     const yes = ev.rsvps.filter((r) => r.status === "JA");
     return (
       <>
-        <h1 className="text-2xl font-bold">{ev.title}</h1>
-        <p className="mb-4 text-stone-600">{formatDay(ev.date)}{ev.location ? ` · ${ev.location}` : ""}</p>
+        <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""}`} title={ev.title} />
         {ev.description && <p className="card mb-4 whitespace-pre-line">{ev.description}</p>}
         <section className="card mb-4">
-          <h2 className="mb-2 font-semibold">Kommst du?</h2>
+          <h2 className="mb-2 ">Kommst du?</h2>
           <form action={setRsvp} className="flex flex-wrap items-end gap-2"><input type="hidden" name="eventId" value={ev.id} />
             <div><label className="label">Weitere Personen (ohne dich)</label><input name="guests" type="number" min={0} max={20} defaultValue={mine?.guests ?? 0} className="input w-24" /></div>
             {(["JA", "VIELLEICHT", "NEIN"] as const).map((st) => <button key={st} name="status" value={st} className={mine?.status === st ? "btn" : "btn-light"}>{st === "JA" ? "Ich komme" : st === "NEIN" ? "Ich kann nicht" : "Vielleicht"}</button>)}
@@ -34,7 +33,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
           <p className="mt-2 text-xs text-stone-500">{yes.length + yes.reduce((a, r) => a + r.guests, 0)} Personen haben bisher zugesagt.</p>
         </section>
         {ev.slots.length > 0 && (
-          <section className="card mb-4"><h2 className="mb-2 font-semibold">Helfer gesucht</h2>
+          <section className="card mb-4"><h2 className="mb-2 ">Helfer gesucht</h2>
             <ul>{ev.slots.map((sl) => { const joined = sl.signups.some((x) => x.personId === me.id); const full = sl.signups.length >= sl.capacity; return (
               <li key={sl.id} className="flex flex-wrap items-center gap-x-3 border-t border-stone-100 py-2 first:border-0">
                 <div className="min-w-0 flex-1"><div className="font-medium">{sl.title}{sl.timeText ? <span className="font-normal text-stone-600"> · {sl.timeText}</span> : null}</div>{sl.description && <div className="text-sm text-stone-600">{sl.description}</div>}<div className="text-xs text-stone-500">{sl.signups.length} von {sl.capacity} Plätzen vergeben</div></div>
@@ -55,7 +54,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
         <form action={cycleTaskStatus}><input type="hidden" name="id" value={t.id} /><button title="Status weiterschalten"><StatusBadge status={t.status} /></button></form>
         <span className={`font-medium ${t.status === "ERLEDIGT" ? "text-stone-400 line-through" : ""}`}>{t.title}</span>
         <span className="text-sm text-stone-500">{t.assignee?.name ?? "niemand zugewiesen"}</span>
-        <span className={`ml-auto text-sm ${t.status !== "ERLEDIGT" && t.dueDate < t0 ? "font-semibold text-red-700" : "text-stone-600"}`}>{formatDay(t.dueDate)}</span>
+        {t.status !== "ERLEDIGT" && t.dueDate < t0 && <OverdueBadge />}<span className={`ml-auto text-sm ${t.status !== "ERLEDIGT" && t.dueDate < t0 ? "font-bold text-poster" : "text-stone-600"}`}>{formatDay(t.dueDate)}</span>
       </div>
       <details className="mt-1"><summary className="cursor-pointer text-xs text-brand-600">Bearbeiten</summary>
         {taskForm(t)}
@@ -82,16 +81,14 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <div><h1 className="text-2xl font-bold">{ev.title}</h1><p className="text-stone-600">{formatDay(ev.date)}{ev.location ? ` · ${ev.location}` : ""} · {EVENT_LABEL[ev.status as keyof typeof EVENT_LABEL]}</p></div>
-        <Progress done={done} total={ev.tasks.length} />
-      </div>
+      <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""} · ${EVENT_LABEL[ev.status as keyof typeof EVENT_LABEL]}${ev.published ? " · veröffentlicht" : " · Entwurf"}`} title={ev.title}
+        right={<Progress onDark done={done} total={ev.tasks.length} />} />
 
       {ev.milestones.map((m) => {
         const ts = ev.tasks.filter((t) => t.milestoneId === m.id);
         return (
           <section key={m.id} className="card mb-4">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">🎯 {m.title} <span className="text-sm font-normal text-stone-500">bis {formatDay(m.dueDate)}</span></h2><Progress done={ts.filter((t) => t.status === "ERLEDIGT").length} total={ts.length} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2>🎯 {m.title} <span className="text-sm font-normal text-stone-500">bis {formatDay(m.dueDate)}</span></h2><Progress done={ts.filter((t) => t.status === "ERLEDIGT").length} total={ts.length} /></div>
             <ul className="mt-2">{ts.map(taskRow)}</ul>
             <details className="mt-2"><summary className="cursor-pointer text-sm text-brand-600">Aufgabe hinzufügen</summary>{taskForm(null, m.id)}</details>
             <details className="mt-1"><summary className="cursor-pointer text-xs text-stone-500">Meilenstein bearbeiten</summary>
@@ -104,7 +101,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       })}
 
       <section className="card mb-4">
-        <h2 className="font-semibold">Aufgaben ohne Meilenstein</h2>
+        <h2>Aufgaben ohne Meilenstein</h2>
         <ul className="mt-2">{loose.map(taskRow)}</ul>
         <details className="mt-2"><summary className="cursor-pointer text-sm text-brand-600">Aufgabe hinzufügen</summary>{taskForm(null)}</details>
       </section>
@@ -117,7 +114,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       </form>
 
       <section className="card mb-4">
-        <h2 className="mb-2 font-semibold">Helfer-Slots</h2>
+        <h2 className="mb-2 ">Helfer-Slots</h2>
         <ul className="mb-3">{ev.slots.map((sl) => (
           <li key={sl.id} className="border-t border-stone-100 py-2 first:border-0">
             <div className="font-medium">{sl.title}{sl.timeText ? <span className="font-normal text-stone-600"> · {sl.timeText}</span> : null} <span className="text-sm font-normal text-stone-500">({sl.signups.length}/{sl.capacity}: {sl.signups.map((x) => x.person.name).join(", ") || "noch niemand"})</span></div>
@@ -135,7 +132,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="card mb-4">
-        <h2 className="mb-2 font-semibold">Zu- und Absagen</h2>
+        <h2 className="mb-2 ">Zu- und Absagen</h2>
         {(() => { const c = (st: string) => ev.rsvps.filter((r) => r.status === st); const pax = c("JA").reduce((a, r) => a + 1 + r.guests, 0);
           return <><p className="text-sm text-stone-700">✅ {c("JA").length} Zusagen ({pax} Personen inkl. Begleitung) · ❓ {c("VIELLEICHT").length} vielleicht · ❌ {c("NEIN").length} Absagen</p>
             <p className="mt-1 text-sm text-stone-600">{c("JA").map((r) => `${r.person.name}${r.guests ? ` +${r.guests}` : ""}`).join(", ")}</p></>; })()}
@@ -143,14 +140,14 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="card mb-4">
-        <h2 className="mb-2 font-semibold">Lessons Learned</h2>
+        <h2 className="mb-2 ">Lessons Learned</h2>
         <form action={saveLessons}><input type="hidden" name="id" value={ev.id} />
           <textarea name="lessonsLearned" rows={5} defaultValue={ev.lessonsLearned ?? ""} placeholder="Was lief gut? Was machen wir nächstes Mal anders?" className="input" />
           <button className="btn mt-2">Speichern</button></form>
       </section>
 
       <section className="card mb-4">
-        <h2 className="mb-2 font-semibold">Als Vorlage speichern</h2>
+        <h2 className="mb-2 ">Als Vorlage speichern</h2>
         <p className="mb-2 text-sm text-stone-600">Übernimmt Meilensteine und Aufgaben in der jetzigen Form; Fristen werden wieder relativ zum Veranstaltungstag gespeichert.</p>
         <form action={saveAsTemplate} className="flex flex-wrap items-end gap-2"><input type="hidden" name="eventId" value={ev.id} />
           <div><label className="label">Bestehende Vorlage überschreiben</label><select name="templateId" defaultValue={ev.templateId ?? ""} className="input"><option value="">– neue Vorlage –</option>{templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
@@ -171,7 +168,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
         <form action={deleteEvent} className="mt-4"><input type="hidden" name="id" value={ev.id} /><button className="btn-danger">Veranstaltung löschen</button></form>
       </details>
 
-      <section className="card"><h2 className="mb-2 font-semibold">Änderungsprotokoll</h2>
+      <section className="card"><h2 className="mb-2 ">Änderungsprotokoll</h2>
         <ul className="space-y-1 text-sm text-stone-600">{ev.log.map((l) => <li key={l.id}><span className="text-stone-400">{new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Berlin" }).format(l.createdAt)}</span> {l.text}</li>)}</ul></section>
     </>
   );

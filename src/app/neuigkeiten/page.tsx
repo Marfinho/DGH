@@ -26,7 +26,7 @@ export default async function News() {
       <div className="space-y-3">
         {posts.map((n) => (
           <article key={n.id} className="card">
-            <h2 className="font-semibold">{n.pinned && "📌 "}{n.title}</h2>
+            <h2>{n.pinned && "📌 "}{n.title}</h2>
             <p className="mb-1 text-xs text-stone-500">{fmt.format(n.publishedAt)}{n.author ? ` · ${n.author.name}` : ""}</p>
             <p className="whitespace-pre-line text-sm">{n.body}</p>
             {orga && <div className="mt-2 flex gap-2"><form action={togglePin}><input type="hidden" name="id" value={n.id} /><button className="btn-light">{n.pinned ? "Lösen" : "Anheften"}</button></form><form action={deleteNews}><input type="hidden" name="id" value={n.id} /><button className="btn-danger">Löschen</button></form></div>}

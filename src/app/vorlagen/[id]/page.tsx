@@ -37,7 +37,7 @@ export default async function VorlageDetail({ params }: { params: Promise<{ id: 
       </form>
       <p className="mb-4 text-sm text-stone-600">Tage sind relativ zum Veranstaltungstag: <b>−60</b> = 60 Tage vorher, <b>0</b> = am Tag selbst, <b>3</b> = 3 Tage danach.</p>
 
-      <h2 className="mb-2 font-semibold">Meilensteine</h2>
+      <h2 className="mb-2 ">Meilensteine</h2>
       <div className="card mb-6 space-y-2">
         {t.milestones.map((m) => (
           <div key={m.id} className="flex flex-wrap items-center gap-2">
@@ -59,7 +59,7 @@ export default async function VorlageDetail({ params }: { params: Promise<{ id: 
         </form>
       </div>
 
-      <h2 className="mb-2 font-semibold">Aufgaben</h2>
+      <h2 className="mb-2 ">Aufgaben</h2>
       <div className="space-y-3">
         {t.tasks.map((task) => (
           <div key={task.id} className="card flex flex-wrap items-start gap-2">

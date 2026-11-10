@@ -2,11 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html { font-size: 17px; }
+  body { @apply bg-white font-sans text-ink antialiased; }
+  h1, h2 { @apply font-display font-extrabold uppercase text-brand-600; letter-spacing: 0.01em; line-height: 1.05; }
+  h1 { @apply text-4xl md:text-5xl; }
+  h2 { @apply text-2xl; }
+  h3 { @apply font-display text-xl font-bold; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+    outline: 3px solid #FFCA01; outline-offset: 2px; box-shadow: 0 0 0 5px #14281B;
+  }
+}
+
 @layer components {
-  .input { @apply w-full rounded border border-stone-300 bg-white px-2 py-1.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600; }
-  .btn { @apply inline-block rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700; }
-  .btn-light { @apply inline-block rounded border border-stone-300 bg-white px-3 py-1.5 text-sm hover:bg-stone-100; }
-  .btn-danger { @apply inline-block rounded border border-red-300 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-50; }
-  .card { @apply rounded-lg border border-stone-200 bg-white p-4 shadow-sm; }
-  .label { @apply mb-1 block text-xs font-medium text-stone-600; }
+  .input { @apply min-h-[44px] w-full rounded-md border-2 border-ink/70 bg-white px-3 py-2 text-base text-ink placeholder:text-stone-400 focus:border-brand-600; }
+  textarea.input { @apply min-h-[88px]; }
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center rounded-md bg-brand-600 px-4 py-2 font-display text-lg font-extrabold uppercase tracking-wide text-white hover:bg-brand-700 disabled:opacity-60; }
+  .btn-sun { @apply inline-flex min-h-[44px] items-center justify-center rounded-md bg-sun px-4 py-2 font-display text-lg font-extrabold uppercase tracking-wide text-ink hover:brightness-95; }
+  .btn-light { @apply inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-brand-600 bg-white px-4 py-2 font-display text-lg font-bold uppercase tracking-wide text-brand-600 hover:bg-brand-50; }
+  .btn-danger { @apply inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-poster bg-white px-4 py-2 font-display text-lg font-bold uppercase tracking-wide text-poster hover:bg-poster-light; }
+  .card { @apply rounded-[10px] border-[3px] border-brand-600 bg-white p-4 shadow-hard; }
+  .label { @apply mb-1 block text-sm font-semibold text-stone-600; }
+  summary { @apply cursor-pointer; }
 }

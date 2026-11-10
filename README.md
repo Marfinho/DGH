@@ -2,6 +2,8 @@
 
 Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Keimzelle einer Bürgerapp (Next.js 15, Prisma/SQLite, Caddy). UI auf Deutsch.
 
+**Design „Plakat“:** Logo-Farben Grün `#0B4F2A`, Rot `#BA1722`, Gelb `#FFCA01`, kräftige Rahmen, Condensed-Überschriften; Handy mit Tab-Leiste, Desktop mit Kopfmenü. Farben und Schriften stehen in `tailwind.config.ts` und `src/app/globals.css`, das Logo in `public/logo.png`.
+
 ## Funktionen
 **Planung (Orga):** Vorlagen mit Fristen relativ zum Veranstaltungstag · Veranstaltungen als Projekte mit Meilensteinen, Aufgaben (Status, Zuständige) · Lessons Learned · „Als Vorlage speichern“ · Änderungsprotokoll · Helfer-Slots · Zu-/Absagen-Übersicht
 
@@ -47,7 +49,7 @@ docker compose cp app:/data/backup.db ./backup-$(date +%F).db
 ```
 
 ## Datenschutz (DSGVO)
-- Gespeichert werden Name, freiwillig E-Mail/Telefon, Rolle, Zu-/Absagen, Helfer-Einträge, Push-Abos. Kein Tracking, keine externen Fonts/CDNs, keine Cookies außer dem Sitzungs-Cookie.
+- Gespeichert werden Name, freiwillig E-Mail/Telefon, Rolle, Zu-/Absagen, Helfer-Einträge, Push-Abos. Kein Tracking, keine externen Fonts/CDNs (Schriften Barlow, Barlow Condensed und Kaushan Script liegen lokal im Build), keine Cookies außer dem Sitzungs-Cookie.
 - Sitzungs-Tokens, Einladungscodes und Anmelde-Links werden nur als SHA-256-Hash gespeichert. Anmelde-Links gelten 15 Min und einmalig, Codes 7 Tage und einmalig.
 - Jede Person kann unter „Mein Profil“ ihre Daten exportieren (JSON) und ihr Konto löschen; Admins können Personen löschen und Sitzungen beenden.
 - „Vereine & Kontakte“ ist für alle angemeldeten Bewohner sichtbar – Kontaktdaten nur mit Einverständnis eintragen.

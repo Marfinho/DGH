@@ -2,7 +2,7 @@
 import { useActionState } from "react";
 import { importWaste, generateWaste, type WasteResult } from "./actions";
 
-const Msg = ({ s }: { s: WasteResult }) => (s ? <p className={`text-sm ${s.error ? "text-red-700" : "text-green-800"}`}>{s.error ?? s.ok}</p> : null);
+const Msg = ({ s }: { s: WasteResult }) => (s ? <p className={`text-sm ${s.error ? "text-poster" : "text-green-800"}`}>{s.error ?? s.ok}</p> : null);
 
 export function ImportForm() {
   const [s, a, p] = useActionState(importWaste, null);

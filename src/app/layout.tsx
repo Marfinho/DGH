@@ -1,39 +1,52 @@
+import "@fontsource/barlow/latin-500.css";
+import "@fontsource/barlow/latin-600.css";
+import "@fontsource/barlow/latin-700.css";
+import "@fontsource/barlow-condensed/latin-600.css";
+import "@fontsource/barlow-condensed/latin-700.css";
+import "@fontsource/barlow-condensed/latin-800.css";
+import "@fontsource/kaushan-script/latin-400.css";
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
 import { getUser, hasRole } from "@/lib/auth";
 import { logout } from "./login/actions";
 import { PwaRegister } from "@/components/pwa";
+import { TopNav, BottomNav, type NavItem } from "@/components/nav";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Dorfplaner", description: "Veranstaltungen und Infos für unsere Dorfgemeinschaft",
+  title: "Dorfplaner · Dorfgemeinschaft Haste", description: "Veranstaltungen und Infos für unsere Dorfgemeinschaft",
   manifest: "/manifest.webmanifest", icons: { icon: "/icons/icon.svg", apple: "/icons/icon-192.png" },
   appleWebApp: { capable: true, title: "Dorfplaner" },
 };
-export const viewport: Viewport = { themeColor: "#2f6b3f", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#0B4F2A", width: "device-width", initialScale: 1 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const u = await getUser();
-  const nav: [string, string][] = u ? [["/", "Übersicht"], ["/veranstaltungen", "Veranstaltungen"], ["/meine-aufgaben", "Meine Aufgaben"], ["/neuigkeiten", "Neuigkeiten"], ["/gruppen", "Vereine & Kontakte"], ["/muell", "Müllkalender"]] : [];
-  if (u && hasRole(u, "ORGANISATOR")) nav.push(["/vorlagen", "Vorlagen"]);
-  if (u && hasRole(u, "ADMIN")) nav.push(["/personen", "Personen"]);
+  // Hauptpunkte (Handy: Tab-Leiste, Rest unter „Mehr“)
+  const main: NavItem[] = [{ href: "/", label: "Start" }, { href: "/veranstaltungen", label: "Termine" }, { href: "/meine-aufgaben", label: "Aufgaben" }];
+  const more: NavItem[] = [{ href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine & Kontakte" }, { href: "/muell", label: "Müllkalender" }];
+  if (u && hasRole(u, "ORGANISATOR")) more.push({ href: "/vorlagen", label: "Vorlagen" });
+  if (u && hasRole(u, "ADMIN")) more.push({ href: "/personen", label: "Personen" });
   return (
     <html lang="de">
-      <body className="min-h-screen bg-stone-50 text-stone-900">
-        <header className="border-b border-stone-200 bg-white">
-          <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3">
-            <Link href="/" className="text-lg font-bold text-brand-700">🏡 Dorfplaner</Link>
-            {nav.map(([h, l]) => <Link key={h} href={h} className="text-sm text-stone-700 hover:text-brand-600">{l}</Link>)}
+      <body className="min-h-screen">
+        <header className="border-b-4 border-brand-600 bg-white">
+          <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2">
+            <Link href="/" aria-label="Dorfplaner Startseite" className="shrink-0">
+              <img src="/logo.png" alt="Dorfgemeinschaft Haste" width={770} height={220} className="h-10 w-auto md:h-12" />
+            </Link>
+            {u && <TopNav items={[...main, ...more]} />}
             {u && (
-              <span className="ml-auto flex items-center gap-3 text-sm">
-                <Link href="/profil" className="text-stone-600 hover:text-brand-600">{u.name}</Link>
-                <form action={logout}><button className="text-stone-500 hover:text-red-700">Abmelden</button></form>
+              <span className="ml-auto flex items-center gap-3 text-sm font-semibold">
+                <Link href="/profil" className="hidden text-ink hover:text-brand-600 sm:inline">{u.name}</Link>
+                <form action={logout}><button className="rounded-md border-2 border-brand-600 px-3 py-1.5 font-display text-base font-bold uppercase text-brand-600 hover:bg-brand-50">Abmelden</button></form>
               </span>
             )}
-          </nav>
+          </div>
         </header>
-        <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+        <main className={`mx-auto max-w-6xl px-4 py-6 ${u ? "pb-28 md:pb-10" : ""}`}>{children}</main>
+        {u && <BottomNav items={main} />}
         <PwaRegister />
       </body>
     </html>
