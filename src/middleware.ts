@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Grobe Vorprüfung (Cookie vorhanden?). Die eigentliche Prüfung machen requireUser() in Seiten und Actions.
-const OPEN = [/^\/login/, /^\/api\/ical\//, /^\/api\/cron\//, /^\/manifest\.webmanifest$/, /^\/sw\.js$/, /^\/icons\//, /^\/logo\.png$/, /^\/installieren/, /^\/_next\//, /^\/favicon/];
+const OPEN = [/^\/login/, /^\/api\/ical\//, /^\/api\/cron\//, /^\/manifest\.webmanifest$/, /^\/sw\.js$/, /^\/icons\//, /^\/logo\.png$/, /^\/installieren/, /^\/muell\.ics$/, /^\/_next\//, /^\/favicon/];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { parseDay, addDays, today } from "@/lib/dates";
+import { parseIcs } from "@/lib/ics-import";
 
 export type WasteResult = { ok?: string; error?: string } | null;
 
@@ -45,4 +46,24 @@ export async function deleteWasteType(fd: FormData) {
   await requireUser("ORGANISATOR");
   await db.wasteDate.deleteMany({ where: { type: String(fd.get("type")), date: { gte: today() } } });
   revalidatePath("/", "layout");
+}
+
+export async function importIcsFile(_: WasteResult, fd: FormData): Promise<WasteResult> {
+  await requireUser("ORGANISATOR");
+  const file = fd.get("file") as File | null;
+  let text = String(fd.get("text") ?? "");
+  if (file && file.size > 0) {
+    if (file.size > 2 * 1024 * 1024) return { error: "Die Datei ist größer als 2 MB." };
+    text = await file.text();
+  }
+  if (!text.trim()) return { error: "Bitte eine .ics-Datei auswählen oder den Inhalt einfügen." };
+  if (!text.includes("BEGIN:VEVENT")) return { error: "Das sieht nicht nach einer Kalenderdatei (.ics) aus – es wurden keine Termine gefunden." };
+  const t = today();
+  const rows = parseIcs(text).filter((r) => r.date >= t);
+  if (!rows.length) return { error: "In der Datei stehen keine zukünftigen Termine." };
+  const types = [...new Set(rows.map((r) => r.type))];
+  if (fd.get("replace") === "on") await db.wasteDate.deleteMany({ where: { type: { in: types }, date: { gte: t } } });
+  const n = await insert(rows);
+  const per = types.map((ty) => `${ty}: ${rows.filter((r) => r.type === ty).length}`).join(" · ");
+  return { ok: `${n} neue Termine übernommen (${rows.length} in der Datei). ${per}` };
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { importWaste, generateWaste, type WasteResult } from "./actions";
+import { importWaste, generateWaste, importIcsFile, type WasteResult } from "./actions";
 
 const Msg = ({ s }: { s: WasteResult }) => (s ? <p className={`text-sm ${s.error ? "text-poster" : "text-green-800"}`}>{s.error ?? s.ok}</p> : null);
 
@@ -14,4 +14,14 @@ export function GenerateForm() {
   return (<form action={a} className="grid gap-2 sm:grid-cols-5"><input name="type" required placeholder="Art, z. B. Bio" className="input" /><input name="start" type="date" required className="input" />
     <input name="every" type="number" min={1} defaultValue={14} title="Alle … Tage" className="input" /><input name="count" type="number" min={1} defaultValue={26} title="Anzahl" className="input" />
     <button className="btn" disabled={p}>Erzeugen</button><div className="sm:col-span-5"><Msg s={s} /></div></form>);
+}
+
+export function IcsForm() {
+  const [s, a, p] = useActionState(importIcsFile, null);
+  return (<form action={a} className="space-y-2">
+    <p className="text-sm text-stone-600">Viele Landkreise und Entsorger bieten ihre Abfuhrtermine als Kalenderdatei (<code>.ics</code>) zum Download an. Datei hier hochladen – die Art der Tonne wird aus dem Terminnamen übernommen, vorhandene Termine werden nicht doppelt angelegt.</p>
+    <div><label className="label">Kalenderdatei (.ics)</label><input type="file" name="file" accept=".ics,text/calendar" className="input !p-1.5" /></div>
+    <details><summary className="text-sm font-semibold text-brand-600">oder Inhalt einfügen</summary><textarea name="text" rows={4} className="input mt-1 font-mono text-xs" placeholder="BEGIN:VCALENDAR …" /></details>
+    <label className="flex min-h-[44px] items-center gap-2 text-sm font-semibold"><input type="checkbox" name="replace" className="h-5 w-5" /> Vorhandene zukünftige Termine dieser Tonnenarten vorher ersetzen</label>
+    <button className="btn" disabled={p}>Kalenderdatei importieren</button><Msg s={s} /></form>);
 }

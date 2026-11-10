@@ -9,7 +9,7 @@ function fold(line: string) {
   out.push(cur);
   return out.join("\r\n");
 }
-export type IcsEvent = { uid: string; title: string; date: Date; location?: string | null; description?: string | null };
+export type IcsEvent = { uid: string; title: string; date: Date; location?: string | null; description?: string | null; alarmEveningBefore?: boolean };
 
 export function buildIcs(name: string, events: IcsEvent[]) {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
@@ -19,6 +19,7 @@ export function buildIcs(name: string, events: IcsEvent[]) {
     lines.push("BEGIN:VEVENT", `UID:${e.uid}@dorfplaner`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ymd(e.date)}`, `DTEND;VALUE=DATE:${ymd(next)}`, `SUMMARY:${esc(e.title)}`);
     if (e.location) lines.push(`LOCATION:${esc(e.location)}`);
     if (e.description) lines.push(`DESCRIPTION:${esc(e.description)}`);
+    if (e.alarmEveningBefore) lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(e.title)} morgen`, "TRIGGER:-PT6H", "END:VALARM"); // 18:00 am Vorabend
     lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");
