@@ -121,7 +121,7 @@ export default async function Reservierung({ searchParams }: { searchParams: Pro
                   </div>
                   <input name="timeText" maxLength={60} placeholder="Uhrzeit, z. B. ab 14 Uhr (optional)" className="input" aria-label="Uhrzeit" />
                   <textarea name="purpose" required minLength={3} maxLength={500} rows={3} placeholder="Wofür? z. B. Geburtstagsfeier, ca. 40 Personen" className="input" aria-label="Zweck" />
-                  <p className="text-xs text-stone-500">Ganze Tage, höchstens {MAX_DAYS} am Stück. Andere sehen nur, dass der Tag belegt ist – Name und Zweck sieht nur die Orga.</p>
+                  <p className="text-xs text-stone-500">Ganze Tage, höchstens {MAX_DAYS} am Stück. Andere sehen nur, dass der Tag belegt ist – Name, Kontaktdaten aus deinem Profil und Zweck sieht nur die Orga.</p>
                   <button className="btn w-full sm:w-auto">{sel.needsApproval ? "Anfrage senden" : "Jetzt reservieren"}</button>
                 </form>
               )}

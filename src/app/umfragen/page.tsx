@@ -62,7 +62,7 @@ export default async function Umfragen({ searchParams }: { searchParams: Promise
         )}
         {orga && (
           <div className="mt-3 flex flex-wrap gap-2 border-t-2 border-stone-200 pt-3">
-            <form action={closePoll}><input type="hidden" name="id" value={p.id} /><button className="btn-light">{p.closedAt ? "Wieder öffnen" : "Jetzt beenden"}</button></form>
+            <form action={closePoll}><input type="hidden" name="id" value={p.id} /><button className="btn-light">{active ? "Jetzt beenden" : "Wieder öffnen"}</button></form>
             <form action={deletePoll}><input type="hidden" name="id" value={p.id} /><button className="btn-danger">Löschen</button></form>
           </div>
         )}

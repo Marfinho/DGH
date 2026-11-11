@@ -65,7 +65,9 @@ export async function closePoll(fd: FormData) {
   await requireUser("ORGANISATOR");
   const id = Number(fd.get("id"));
   const p = await db.poll.findUniqueOrThrow({ where: { id } });
-  await db.poll.update({ where: { id }, data: { closedAt: p.closedAt ? null : new Date(), ...(p.closedAt && p.closesOn && p.closesOn < today() ? { closesOn: null } : {}) } });
+  // Offen → beenden; beendet (manuell oder Frist abgelaufen) → wieder öffnen, abgelaufene Frist entfällt
+  if (isOpen(p, today())) await db.poll.update({ where: { id }, data: { closedAt: new Date() } });
+  else await db.poll.update({ where: { id }, data: { closedAt: null, ...(p.closesOn && p.closesOn < today() ? { closesOn: null } : {}) } });
   refresh();
 }
 
