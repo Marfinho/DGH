@@ -21,7 +21,7 @@ export default async function Ablauf({ params, searchParams }: { params: Promise
   const days = groupByDay(ev.schedule);
 
   const form = (it: It | null, dayOffset = 0) => (
-    <form action={saveScheduleItem} className="grid gap-2 sm:grid-cols-12">
+    <form key={it ? `${it.id}-${it.dayOffset}-${it.time}-${it.endTime}-${it.title}-${it.place}-${it.note}-${it.isPublic}-${it.responsibleId}` : "neu"} action={saveScheduleItem} className="grid gap-2 sm:grid-cols-12">
       <input type="hidden" name="eventId" value={id} />{it && <input type="hidden" name="id" value={it.id} />}
       <select name="dayOffset" defaultValue={it?.dayOffset ?? dayOffset} className="input sm:col-span-3" aria-label="Tag">
         {Array.from({ length: 11 }, (_, i) => i - 5).map((o) => <option key={o} value={o}>{o === 0 ? "Veranstaltungstag" : o === -1 ? "Vortag" : o === 1 ? "Tag danach" : o < 0 ? `${-o} Tage vorher` : `${o} Tage danach`}</option>)}

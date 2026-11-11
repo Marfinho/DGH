@@ -56,7 +56,7 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
             {programm.map((g) => (
               <div key={g.dayOffset} className="mb-2 last:mb-0">
                 {programm.length > 1 && <h3 className="font-display text-lg font-bold uppercase text-stone-600">{dayHeading(ev.date, g.dayOffset).split(" · ")[0]}</h3>}
-                <ol>{g.items.map((it) => <li key={it.id} className="flex flex-wrap items-baseline gap-x-3 border-t-2 border-stone-200 py-1.5 first:border-0"><span className="w-28 shrink-0 font-display text-xl font-bold text-brand-600">{timeRange(it.time, it.endTime)}</span><span className="font-semibold">{it.title}</span>{it.place && <span className="text-sm text-stone-600">{it.place}</span>}</li>)}</ol>
+                <ol>{g.items.map((it) => <li key={it.id} className="grid grid-cols-[5.5rem_1fr] items-baseline gap-x-3 border-t-2 border-stone-200 py-1.5 first:border-0 sm:grid-cols-[7rem_1fr]"><span className="font-display text-xl font-bold text-brand-600">{timeRange(it.time, it.endTime) || "ganztags"}</span><span><span className="font-semibold">{it.title}</span>{it.place && <span className="block text-sm text-stone-600">{it.place}</span>}</span></li>)}</ol>
               </div>
             ))}
           </section>

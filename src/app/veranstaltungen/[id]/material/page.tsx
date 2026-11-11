@@ -26,7 +26,7 @@ export default async function Material({ params, searchParams }: { params: Promi
   type It = (typeof ev.material)[number];
 
   const form = (it: It | null) => (
-    <form action={saveMaterial} className="grid gap-2 sm:grid-cols-12">
+    <form key={it ? `${it.id}-${it.status}-${it.responsibleId}-${it.title}-${it.quantity}-${it.source}-${it.note}` : "neu"} action={saveMaterial} className="grid gap-2 sm:grid-cols-12">
       <input type="hidden" name="eventId" value={id} />{it && <input type="hidden" name="id" value={it.id} />}
       <input name="title" required maxLength={200} defaultValue={it?.title} placeholder="Was? z. B. Bierzeltgarnituren" className="input sm:col-span-4" aria-label="Was" />
       <input name="quantity" maxLength={60} defaultValue={it?.quantity ?? ""} placeholder="Menge, z. B. 10 Sets" className="input sm:col-span-2" aria-label="Menge" />
@@ -69,7 +69,7 @@ export default async function Material({ params, searchParams }: { params: Promi
                 {m.quantity && <span className="font-display text-lg font-bold">{m.quantity}</span>}
                 {m.source && <span className="text-sm text-stone-600">{m.source}</span>}
                 <span className="hidden text-sm print:inline">{m.responsible?.name ?? ""}</span>
-                <span className="ml-auto print:hidden"><AutoSelect action={assignMaterial} name="responsibleId" value={m.responsibleId ?? ""} hidden={{ id: m.id, eventId: id }} label={`Wer kümmert sich um ${m.title}`} options={[{ value: "", label: "– niemand –" }, ...people.map((p) => ({ value: p.id, label: p.name }))]} /></span>
+                <span className="ml-auto print:hidden"><AutoSelect key={`${m.id}-${m.responsibleId}`} action={assignMaterial} name="responsibleId" value={m.responsibleId ?? ""} hidden={{ id: m.id, eventId: id }} label={`Wer kümmert sich um ${m.title}`} options={[{ value: "", label: "– niemand –" }, ...people.map((p) => ({ value: p.id, label: p.name }))]} /></span>
               </div>
               {m.note && <p className="text-sm text-stone-600">{m.note}</p>}
               <details className="mt-1 print:hidden"><summary className="cursor-pointer text-xs text-brand-600">Bearbeiten</summary>

@@ -7,6 +7,8 @@ test("Standardvorlagen sind in sich stimmig", () => {
   assert.deepEqual(STANDARD_TEMPLATES.map((t) => t.name), ["Osterfeuer", "Dorfgemeinschaftsfest", "Weihnachtsmarkt"]);
   for (const t of STANDARD_TEMPLATES) {
     const areas = new Set(t.areas);
+    const late = t.tasks.filter(([, off, m]) => m !== null && off > t.milestones[m][1] && t.milestones[m][1] < 0).map(([title, off, m]) => `${title} (${off} > ${t.milestones[m!][1]})`);
+    assert.deepEqual(late, [], `${t.name}: Aufgaben nach ihrem Meilenstein`);
     for (const [title, , m, a] of t.tasks) {
       assert.ok(m === null || (m >= 0 && m < t.milestones.length), `${t.name}: Meilenstein bei „${title}“`);
       assert.ok(a === null || areas.has(a), `${t.name}: Gebiet „${a}“ bei „${title}“`);

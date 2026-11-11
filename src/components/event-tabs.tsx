@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export type EventTab = "aufgaben" | "ablauf" | "material" | "budget";
-const TABS: [EventTab, string, string][] = [["aufgaben", "Aufgaben", ""], ["ablauf", "Ablaufplan", "/ablauf"], ["material", "Material & Einkauf", "/material"], ["budget", "Budget", "/budget"]];
+const TABS: [EventTab, string, string][] = [["aufgaben", "Aufgaben", ""], ["ablauf", "Ablaufplan", "/ablauf"], ["material", "Material", "/material"], ["budget", "Budget", "/budget"]];
 
 /** Reiter der Orga-Ansicht einer Veranstaltung. */
 export function EventTabs({ id, active, counts = {} }: { id: number; active: EventTab; counts?: Partial<Record<EventTab, string>> }) {
