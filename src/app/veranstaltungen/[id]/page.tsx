@@ -69,7 +69,7 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
             ))}
           </section>
         )}
-        {budgetCard}
+        {!isOrga && budgetCard}
         {ev.attachments.filter((a) => a.visible).length > 0 && ev.published && (
           <section className="card mb-4"><h2 className="mb-2">Unterlagen</h2>
             <ul>{ev.attachments.filter((a) => a.visible).map((a) => <li key={a.id} className="border-t-2 border-stone-200 py-2 first:border-0"><a href={`/api/files/${a.id}`} className="font-semibold text-brand-600 underline">{a.name}</a> <span className="text-sm text-stone-500">({formatSize(a.size)})</span></li>)}</ul></section>

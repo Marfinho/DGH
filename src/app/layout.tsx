@@ -31,8 +31,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ? [{ href: "/", label: "Start" }, termine, { href: "/planung", label: "Planung", match: ["/vorlagen", "/archiv", "/aushang"] }, { href: "/meine-aufgaben", label: "Aufgaben" }]
     : [{ href: "/", label: "Start" }, termine, { href: "/brett", label: "Brett", match: ["/fundbuero"] }, { href: "/muell", label: "Müll" }];
   const top: NavItem[] = orga
-    ? [...main, { href: "/brett", label: "Brett", match: ["/fundbuero"] }, { href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/mehr", label: "Mehr" }]
-    : [...main, { href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/umfragen", label: "Umfragen" }, { href: "/mehr", label: "Mehr" }];
+    ? [...main, { href: "/brett", label: "Brett", match: ["/fundbuero"], wide: true }, { href: "/neuigkeiten", label: "Neuigkeiten", wide: true }, { href: "/mehr", label: "Mehr" }]
+    : [...main, { href: "/neuigkeiten", label: "Neuigkeiten", wide: true }, { href: "/umfragen", label: "Umfragen", wide: true }, { href: "/mehr", label: "Mehr" }];
   return (
     <html lang="de">
       <body className="min-h-screen">
@@ -44,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {u && <TopNav items={top} />}
             {u && (
               <span className="ml-auto flex items-center gap-3 text-sm font-semibold">
-                <Link href="/profil" className="hidden text-ink hover:text-brand-600 sm:inline">{u.name}</Link>
+                <Link href="/profil" className="hidden text-ink hover:text-brand-600 xl:inline">{u.name}</Link>
                 <form action={logout}><button className="rounded-md border-2 border-brand-600 px-3 py-1.5 font-display text-base font-bold uppercase text-brand-600 hover:bg-brand-50">Abmelden</button></form>
               </span>
             )}

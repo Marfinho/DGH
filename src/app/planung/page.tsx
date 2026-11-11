@@ -9,7 +9,7 @@ import { PageTitle, StatusBadge } from "@/components/ui";
 export default async function Planung() {
   await requireUser("ORGANISATOR");
   const t = today();
-  const [events, tasks, bookings, issues, reported] = await Promise.all([
+  const [events, tasks, bookings, issues, reportedBrett, reportedFund] = await Promise.all([
     db.event.findMany({
       where: { status: "GEPLANT" }, orderBy: { date: "asc" },
       include: {
@@ -23,12 +23,13 @@ export default async function Planung() {
     db.task.findMany({ where: { status: { not: "ERLEDIGT" }, event: { status: "GEPLANT" }, dueDate: { lte: addDays(t, 14) } }, orderBy: { dueDate: "asc" }, take: 60, include: { event: { select: { title: true } }, assignee: { select: { name: true } } } }),
     db.booking.count({ where: { status: "ANGEFRAGT" } }),
     db.issue.count({ where: { status: "NEU" } }),
-    db.boardPost.count({ where: { reportedAt: { not: null } } }),
+    db.boardPost.count({ where: { reportedAt: { not: null }, category: { not: "FUNDBUERO" } } }),
+    db.boardPost.count({ where: { reportedAt: { not: null }, category: "FUNDBUERO" } }),
   ]);
   const overdue = tasks.filter((x) => x.dueDate < t), soon = tasks.filter((x) => x.dueDate >= t);
   const inbox: [string, string, number][] = [
     ["/reservierung", "Reservierungsanfragen", bookings], ["/anliegen?status=NEU", "Neue Anliegen", issues],
-    ["/brett", "Gemeldete Beiträge (Brett/Fundbüro)", reported]
+    ["/brett", "Gemeldete Beiträge im Brett", reportedBrett], ["/fundbuero", "Gemeldete Beiträge im Fundbüro", reportedFund]
   ];
 
   const row = (x: (typeof tasks)[number]) => (
