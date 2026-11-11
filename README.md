@@ -79,18 +79,34 @@ npm test
 Ohne `SMTP_URL` landen E-Mail-Links im Server-Log; Einladungscodes funktionieren immer.
 
 ## Deployment (VPS, Docker Compose)
+
+### Mit dem Installer (empfohlen, auch neben anderen Diensten)
+`deploy/install.sh` richtet alles ein und ist zugleich das Update-Skript:
 ```bash
-cp .env.example .env     # DOMAIN, APP_URL (https://…), CRON_SECRET, optional SMTP_URL, VAPID_*
+curl -fsSL https://raw.githubusercontent.com/Marfinho/DGH/main/deploy/install.sh -o install.sh
+sudo bash install.sh --check                                 # prüft nur: Docker, DNS, Ports, Speicher
+sudo bash install.sh --domain dgh.lindenweg16.online         # installiert bzw. aktualisiert
+```
+Was er tut: Code nach `/opt/dorfplaner` holen, `.env` **einmalig** anlegen (Geheimnis für die Erinnerungen, Push-Schlüssel, optional SMTP – eine vorhandene `.env` wird nie überschrieben), bauen und starten, die App nur lokal auf `127.0.0.1:<Port ab 3100>` veröffentlichen und dann den Reverse Proxy einrichten:
+- **Caddy läuft schon auf dem Server** (z. B. für andere Projekte): ein markierter Eintrag für die Domain wird an die Caddyfile angehängt (Sicherung vorher, `caddy validate`, bei Fehler Rückbau), andere Einträge bleiben unberührt.
+- **Port 80/443 frei:** der mitgelieferte Caddy wird gestartet (`COMPOSE_PROFILES=caddy` in der `.env`).
+- **nginx oder ein Proxy-Container:** der Installer gibt die fertige Konfiguration aus (für nginx mit `Host`/`X-Forwarded-*`-Kopfzeilen und 12 MB Upload-Grenze) und ändert dort nichts.
+
+Danach legt er auf Wunsch den ersten Admin an (Einladungscode) und die fertigen Vorlagen. Andere Container werden nie angehalten oder neu gestartet; Docker-Projektname ist fest `dorfplaner`. Optionen: `--branch`, `--dir`, `--port`, `--proxy auto|host-caddy|bundled|manual`, `--help`.
+
+### Von Hand
+```bash
+cp .env.example .env     # DOMAIN, APP_URL (https://…), CRON_SECRET, optional SMTP_URL, VAPID_*; COMPOSE_PROFILES=caddy falls 80/443 frei
 npx web-push generate-vapid-keys             # Push-Schlüssel in .env eintragen
 docker compose up -d --build
 docker compose exec app npm run admin -- "Dein Name" du@example.de
 docker compose exec app npm run db:seed      # optional
 ```
-Caddy holt automatisch Let's-Encrypt-Zertifikate (DNS muss auf den VPS zeigen). Der Dienst `reminders` löst täglich ~7–8 Uhr die Push-Erinnerungen aus. Push funktioniert nur über HTTPS; auf dem iPhone erst „Zum Home-Bildschirm“.
+Der Caddy holt automatisch Let's-Encrypt-Zertifikate (DNS muss auf den VPS zeigen). Der Dienst `reminders` löst täglich ~7–8 Uhr die Push-Erinnerungen aus. Push funktioniert nur über HTTPS; auf dem iPhone erst „Zum Home-Bildschirm“.
 
 ## Updates
 ```bash
-git pull && docker compose up -d --build     # Migrationen laufen beim Start
+sudo bash /opt/dorfplaner/deploy/install.sh  # oder: git pull && docker compose up -d --build (Migrationen laufen beim Start)
 ```
 
 ## Backup
