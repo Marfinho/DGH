@@ -26,6 +26,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
     where: { status: "BEANTRAGT", OR: [{ requestedById: null }, { requestedById: { not: me.id } }], ...(me.role === "ADMIN" ? {} : { event: { members: { some: { personId: me.id, role: "FREIGEBER" } } } }) },
     orderBy: { createdAt: "asc" }, take: 20, include: { event: true, requestedBy: true },
   });
+  const [openPolls, pendingBookings] = await Promise.all([
+    db.poll.findMany({ where: { closedAt: null, OR: [{ closesOn: null }, { closesOn: { gte: t } }], votes: { none: { personId: me.id } } }, orderBy: { createdAt: "desc" }, take: 3, select: { id: true, title: true, closesOn: true } }),
+    orga ? db.booking.count({ where: { status: "ANGEFRAGT" } }) : Promise.resolve(0),
+  ]);
   const [newIssues, boardLatest] = await Promise.all([
     orga ? db.issue.count({ where: { status: "NEU" } }) : Promise.resolve(0),
     db.boardPost.findMany({ where: { expiresAt: { gt: new Date() }, status: "OFFEN" }, orderBy: { createdAt: "desc" }, take: 3, select: { id: true, title: true, category: true, kind: true } }),
@@ -96,6 +100,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
         <section className="card"><h2 className="mb-2">Müllabfuhr (14 Tage)</h2><ul className="text-sm">{waste.map((w) => <li key={w.id} className="flex gap-2 border-t border-stone-100 py-1.5 first:border-0"><span>🗑 {w.type}</span><span className="ml-auto text-stone-600">{formatDay(w.date)}</span></li>)}</ul>{!waste.length && <p className="text-sm text-stone-500">Keine Termine hinterlegt.</p>}</section>
       </div>
 
+      {openPolls.length > 0 && (
+        <section className="card mb-4 !border-sun !shadow-[5px_5px_0_#FFCA01]"><div className="mb-2 flex justify-between"><h2>Deine Stimme ist gefragt</h2><Link href="/umfragen" className="text-sm font-semibold text-brand-600 hover:underline">Alle Umfragen →</Link></div>
+          <ul>{openPolls.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-x-3 border-t-2 border-stone-200 py-2 first:border-0"><span className="font-semibold">{p.title}</span>{p.closesOn && <span className="text-sm text-stone-600">bis {formatDay(p.closesOn)}</span>}<Link href={`/umfragen#u${p.id}`} className="btn-sun ml-auto">Abstimmen</Link></li>)}</ul></section>
+      )}
+      {pendingBookings > 0 && <Link href="/reservierung" className="card mb-4 flex items-center justify-between !border-sun !shadow-[5px_5px_0_#FFCA01]"><span className="font-display text-2xl font-extrabold uppercase text-brand-600">{pendingBookings} Reservierungsanfrage{pendingBookings === 1 ? "" : "n"}</span><span className="btn-sun">Bearbeiten</span></Link>}
       {newIssues > 0 && <Link href="/anliegen?status=NEU" className="card mb-4 flex items-center justify-between !border-sun !shadow-[5px_5px_0_#FFCA01]"><span className="font-display text-2xl font-extrabold uppercase text-brand-600">{newIssues} neue{newIssues === 1 ? "s" : ""} Anliegen</span><span className="btn-sun">Ansehen</span></Link>}
       {boardLatest.length > 0 && (
         <section className="card mb-4"><div className="mb-2 flex justify-between"><h2>Schwarzes Brett</h2><Link href="/brett" className="text-sm font-semibold text-brand-600 hover:underline">Alle →</Link></div>

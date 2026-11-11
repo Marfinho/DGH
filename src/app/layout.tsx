@@ -26,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Hauptpunkte (Handy: Tab-Leiste, Rest unter „Mehr“)
   // Handy: Tab-Leiste mit den Hauptpunkten, alles andere unter „Mehr“. Desktop: erweiterte Kopfzeile.
   const main: NavItem[] = [{ href: "/", label: "Start" }, { href: "/veranstaltungen", label: "Termine" }, { href: "/meine-aufgaben", label: "Aufgaben" }, { href: "/brett", label: "Brett" }];
-  const top: NavItem[] = [...main, { href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine" }, { href: "/muell", label: "Müll" }, { href: "/anliegen", label: "Anliegen" }, { href: "/mehr", label: "Mehr" }];
+  const top: NavItem[] = [...main, { href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine" }, { href: "/muell", label: "Müll" }, { href: "/anliegen", label: "Anliegen" }, { href: "/umfragen", label: "Umfragen" }, { href: "/reservierung", label: "Leihen" }, { href: "/mehr", label: "Mehr" }];
   return (
     <html lang="de">
       <body className="min-h-screen">

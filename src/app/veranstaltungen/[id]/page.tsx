@@ -10,6 +10,7 @@ import { uploadFile, deleteFile, toggleVisible } from "../dateien";
 import { summarize } from "@/lib/budget";
 import { formatMoney } from "@/lib/money";
 import { today, toInput, formatDay } from "@/lib/dates";
+import { pushEnabled } from "@/lib/push";
 import { EVENT_STATUS, EVENT_LABEL, TASK_STATUS, TASK_LABEL } from "@/lib/constants";
 import { StatusBadge, Progress, EventHero, OverdueBadge } from "@/components/ui";
 import { AutoSelect } from "@/components/auto-select";
@@ -238,6 +239,7 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
           <div><label className="label">Status</label><select name="status" defaultValue={ev.status} className="input">{EVENT_STATUS.map((s) => <option key={s} value={s}>{EVENT_LABEL[s]}</option>)}</select></div>
           <div className="sm:col-span-2"><label className="label">Beschreibung</label><textarea name="description" defaultValue={ev.description ?? ""} rows={2} className="input" /></div>
           <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="published" defaultChecked={ev.published} /> Für Bewohner veröffentlichen (Titel, Datum, Ort, Beschreibung, Helfer-Slots, Zu-/Absage – keine Aufgaben)</label>
+          {!ev.published && pushEnabled() && <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="notify" /> Beim Veröffentlichen alle per Push einladen</label>}
           <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="shift" /> Bei Datumsänderung alle Fristen mitverschieben</label>
           <button className="btn w-fit">Speichern</button></form>
         <form action={deleteEvent} className="mt-4"><input type="hidden" name="id" value={ev.id} /><button className="btn-danger">Veranstaltung löschen</button></form>

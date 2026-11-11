@@ -41,7 +41,15 @@ export async function updateEvent(fd: FormData) {
     }
     await tx.activityLog.create({ data: { eventId: id, text: shift ? `Event um ${shift} Tage verschoben, alle Fristen angepasst` : "Veranstaltungsdaten geändert" } });
   });
+  // Erstveröffentlichung: auf Wunsch alle per Push einladen
+  if (!old.published && fd.get("published") === "on" && fd.get("notify") === "on") {
+    const ev = await db.event.findUniqueOrThrow({ where: { id } });
+    const day = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(ev.date);
+    await sendPush({ title: `Neue Veranstaltung: ${ev.title}`, body: `${day}${ev.location ? ` · ${ev.location}` : ""} – bist du dabei?`, url: `/veranstaltungen/${id}` }).catch(() => {});
+    await logActivity(id, "Veröffentlicht, alle per Push eingeladen");
+  }
   refresh(id);
+  revalidatePath("/");
 }
 
 export async function saveLessons(fd: FormData) {

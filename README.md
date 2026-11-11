@@ -7,14 +7,14 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 ## Funktionen
 **Planung (Orga):** Vorlagen mit Fristen relativ zum Veranstaltungstag · Veranstaltungen als Projekte mit Meilensteinen, Aufgaben (Status, Zuständige) · Lessons Learned · „Als Vorlage speichern“ · Änderungsprotokoll · Helfer-Slots · Zu-/Absagen-Übersicht · **Budget pro Veranstaltung** (Rahmen, Ausgaben/Einnahmen, Prognose, Freigabe-Workflow)
 
-**Bewohner:** Veranstaltungen ansehen, zu-/absagen (mit Begleitung), sich für Helfer-Slots eintragen · „Meine Aufgaben“ · Neuigkeiten · Vereine/Gruppen & Ansprechpartner · Müllkalender
+**Bewohner:** Veranstaltungen ansehen, zu-/absagen (mit Begleitung), sich für Helfer-Slots eintragen · „Meine Aufgaben“ · Neuigkeiten · Vereine/Gruppen & Ansprechpartner · Müllkalender · Umfragen · Räume & Inventar reservieren
 
 **Technik:** Login per Einladungscode oder E-Mail-Link · Rollen Admin / Organisator / Bewohner · persönlicher iCal-Feed · PWA (installierbar) mit Push-Benachrichtigungen · DSGVO-Datenexport und Konto löschen
 
 | Rolle | darf |
 |---|---|
-| Bewohner | veröffentlichte Veranstaltungen sehen, zu-/absagen, Slots, eigene Aufgaben abhaken, Neuigkeiten/Gruppen/Müll lesen |
-| Organisator | + Vorlagen, Veranstaltungen, Aufgaben, Slots, Neuigkeiten, Gruppen, Kontakte, Müllkalender pflegen |
+| Bewohner | veröffentlichte Veranstaltungen sehen, zu-/absagen, Slots, eigene Aufgaben abhaken, Neuigkeiten/Gruppen/Müll lesen, abstimmen, reservieren |
+| Organisator | + Vorlagen, Veranstaltungen, Aufgaben, Slots, Neuigkeiten, Gruppen, Kontakte, Müllkalender, Umfragen, Räume/Inventar und Reservierungen pflegen |
 | Admin | + Personen, Rollen, Einladungen, Sitzungen verwalten |
 
 **Freigeber pro Termin:** Für jede Veranstaltung können Personen (auch normale Bewohner) als *Freigeber* benannt werden. Sie sehen nur das Budget dieses Termins und geben Ausgaben frei oder lehnen sie (mit Begründung) ab. Ablauf einer Ausgabe: *Geplant → Zur Freigabe → Freigegeben/Abgelehnt → Bezahlt*. Eigene Anfragen kann niemand selbst freigeben (Vier-Augen-Prinzip, gilt auch für Admins); Beträge bis zu einer einstellbaren Grenze brauchen keine Freigabe. Wird ein freigegebener Betrag geändert, ist die Freigabe wieder offen. Freigeber und Antragsteller bekommen Push-Nachrichten, offene Freigaben stehen auf der Startseite. Budget-Posten werden mit der Vorlage übernommen (ohne Freigaben).
@@ -29,6 +29,9 @@ Aufgaben und Änderungsprotokoll sehen nur Organisatoren; Bewohner sehen nur ihr
 
 ## Weitere Bürger-Funktionen
 - **Schwarzes Brett** (`/brett`): Suche & Biete, Mitfahren, Leihen & Verschenken, Nachbarschaftshilfe – mit Foto, freiwilligem Kontakt (klickbar), Laufzeit (Standard 30 Tage), „erledigt“, Verlängern und Melden. Abgelaufene Beiträge verschwinden und werden nach 30 Tagen gelöscht. Die Orga moderiert gemeldete Beiträge.
+- **Umfragen** (`/umfragen`): Die Orga stellt eine Frage mit 2–20 Antworten (eine oder mehrere wählbar), optional mit letztem Abstimmungstag und Push an alle. Jede Person hat eine Stimme und kann sie bis zum Ende ändern oder zurückziehen. Ergebnisse erscheinen nach der eigenen Abstimmung bzw. nach Ende – nur als Summen, niemand sieht, wer wie abgestimmt hat. Offene Umfragen ohne eigene Stimme stehen auf der Startseite („Deine Stimme ist gefragt“).
+- **Reservieren & Ausleihen** (`/reservierung`): Die Orga legt Räume (Dorfgemeinschaftshaus) und Inventar (Bierzeltgarnituren, Pavillon …) an – mit Beschreibung, Abholhinweis (Schlüssel) und der Wahl, ob Anfragen bestätigt werden müssen. Bewohner sehen einen Monatskalender (frei / angefragt / belegt) und reservieren ganze Tage (max. 14 am Stück, Uhrzeit als Freitext). Überschneidungen werden serverseitig verhindert; Name und Zweck sieht nur die Orga. Ablauf: *Angefragt → Bestätigt/Abgelehnt*, Stornieren jederzeit; Push an die Orga bei neuen Anfragen, an die Person bei Entscheidung und am Vortag (mit Abholhinweis). Abgelehnte/stornierte Einträge werden nach 30 Tagen, alle anderen ein Jahr nach Ende gelöscht.
+- **Neue Veranstaltung per Push:** Beim ersten Veröffentlichen kann die Orga alle per Push einladen („Beim Veröffentlichen alle per Push einladen“).
 - **Fundbüro** (`/fundbuero`): gefunden/verloren, gleiche Technik wie das Brett (60 Tage).
 - **Vereinsbereich** (`/gruppen/<id>`): Die Orga benennt pro Verein einen *Vorstand*. Der pflegt Termine (erscheinen im Kalender mit Veranstalter, auch im iCal-Feed) und Neuigkeiten des Vereins selbst – ohne Zugriff auf Aufgaben, Budget oder andere Vereine. Termine mit Aufgaben/Budget kann nur die Orga löschen.
 - **Anliegen & Mängel** (`/anliegen`): Meldung mit Foto und optionalem Standort (nur nach Antippen). Sichtbar für die meldende Person und die Orga, optional für alle (gegen Doppelmeldungen). Orga setzt Status (Neu → In Bearbeitung → An Gemeinde weitergeleitet → Erledigt) und antwortet; die Person bekommt Push. Mit `MUNICIPALITY_EMAIL` in der `.env` entsteht ein Knopf, der eine vorbereitete E-Mail an die Gemeinde öffnet (es wird nichts automatisch versendet).

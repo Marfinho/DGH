@@ -9,34 +9,38 @@ datasource db {
 
 // Status als String (SQLite kennt keine Enums); Werte siehe src/lib/constants.ts
 model Person {
-  id             Int                @id @default(autoincrement())
-  name           String
-  email          String?            @unique
-  phone          String?
-  role           String             @default("BEWOHNER") // BEWOHNER | ORGANISATOR | ADMIN
-  calToken       String?            @unique // geheimer Token für den iCal-Feed
-  createdAt      DateTime           @default(now())
-  lastLoginAt    DateTime?
-  tasks          Task[]
-  sessions       Session[]
-  invites        Invite[]
-  loginTokens    LoginToken[]
-  signups        HelperSignup[]
-  rsvps          Rsvp[]
-  eventMembers   EventMember[]
-  requestedItems BudgetItem[]       @relation("requested")
-  decidedItems   BudgetItem[]       @relation("decided")
-  pushSubs       PushSubscription[]
-  newsPosts      NewsPost[]
-  areas          Area[]
-  attachments    Attachment[]
-  wastePush      Boolean            @default(false) // Müll-Erinnerung am Vorabend
-  wasteTypes     String? // kommagetrennt; leer = alle
-  groupMembers   GroupMember[]
-  boardPosts     BoardPost[]
-  issues         Issue[]
-  group          Group?             @relation(fields: [groupId], references: [id])
-  groupId        Int?
+  id              Int                @id @default(autoincrement())
+  name            String
+  email           String?            @unique
+  phone           String?
+  role            String             @default("BEWOHNER") // BEWOHNER | ORGANISATOR | ADMIN
+  calToken        String?            @unique // geheimer Token für den iCal-Feed
+  createdAt       DateTime           @default(now())
+  lastLoginAt     DateTime?
+  tasks           Task[]
+  sessions        Session[]
+  invites         Invite[]
+  loginTokens     LoginToken[]
+  signups         HelperSignup[]
+  rsvps           Rsvp[]
+  eventMembers    EventMember[]
+  requestedItems  BudgetItem[]       @relation("requested")
+  decidedItems    BudgetItem[]       @relation("decided")
+  pushSubs        PushSubscription[]
+  newsPosts       NewsPost[]
+  areas           Area[]
+  attachments     Attachment[]
+  wastePush       Boolean            @default(false) // Müll-Erinnerung am Vorabend
+  wasteTypes      String? // kommagetrennt; leer = alle
+  groupMembers    GroupMember[]
+  boardPosts      BoardPost[]
+  issues          Issue[]
+  group           Group?             @relation(fields: [groupId], references: [id])
+  groupId         Int?
+  polls           Poll[]
+  pollVotes       PollVote[]
+  bookings        Booking[]          @relation("booker")
+  decidedBookings Booking[]          @relation("bookingDecider")
 }
 
 model Session {
@@ -423,4 +427,78 @@ model WasteSource {
   lastCount   Int         @default(0)
   createdAt   DateTime    @default(now())
   dates       WasteDate[]
+}
+
+// Umfrage/Abstimmung. closesOn = letzter Tag, an dem abgestimmt werden kann (UTC-Mitternacht); leer = offen bis manuell beendet
+model Poll {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  multiple    Boolean      @default(false) // mehrere Antworten erlaubt
+  closesOn    DateTime?
+  closedAt    DateTime? // manuell beendet
+  createdById Int?
+  createdBy   Person?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  options     PollOption[]
+  votes       PollVote[]
+}
+
+model PollOption {
+  id     Int        @id @default(autoincrement())
+  pollId Int
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  sort   Int        @default(0)
+  votes  PollVote[]
+}
+
+// Stimme einer Person für eine Antwort (Ergebnisse werden nur als Summen angezeigt)
+model PollVote {
+  id        Int        @id @default(autoincrement())
+  pollId    Int
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  Int
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  personId  Int
+  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([optionId, personId])
+  @@index([pollId, personId])
+}
+
+// Reservierbares Gemeinschaftsgut: Raum (Dorfgemeinschaftshaus) oder Gerät (Bierzeltgarnituren, Pavillon …)
+model Resource {
+  id            Int       @id @default(autoincrement())
+  name          String
+  kind          String    @default("GERAET") // RAUM | GERAET
+  description   String?
+  handover      String? // Abholung/Schlüssel, z. B. "Schlüssel bei Familie Meier, Dorfstr. 5"
+  needsApproval Boolean   @default(true) // false = Buchung sofort bestätigt
+  active        Boolean   @default(true)
+  sort          Int       @default(0)
+  bookings      Booking[]
+}
+
+// Reservierung über ganze Kalendertage (UTC-Mitternacht), Uhrzeit nur als Freitext
+// status: ANGEFRAGT | BESTAETIGT | ABGELEHNT | STORNIERT  (ANGEFRAGT und BESTAETIGT blockieren den Zeitraum)
+model Booking {
+  id          Int       @id @default(autoincrement())
+  resourceId  Int
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  personId    Int
+  person      Person    @relation("booker", fields: [personId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  timeText    String?
+  purpose     String
+  status      String    @default("ANGEFRAGT")
+  note        String? // Antwort der Orga
+  decidedById Int?
+  decidedBy   Person?   @relation("bookingDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([resourceId, startDate])
 }

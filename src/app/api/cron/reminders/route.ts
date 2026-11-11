@@ -25,7 +25,12 @@ export async function GET(req: Request) {
     const ids = new Set<number>([...e.rsvps.map((r) => r.personId), ...e.slots.flatMap((s) => s.signups.map((x) => x.personId))]);
     if (ids.size) sent += await sendPush({ title: `Morgen: ${e.title}`, body: e.location ? `Ort: ${e.location}` : "Wir freuen uns auf dich!", url: `/veranstaltungen/${e.id}` }, [...ids]);
   }
-  // 3) Aufräumen: Brett-Beiträge, die seit 30 Tagen abgelaufen sind, und verwaiste Dateien
+  // 3) Reservierung beginnt morgen: Erinnerung an die buchende Person
+  for (const b of await db.booking.findMany({ where: { status: "BESTAETIGT", startDate: addDays(t, 1) }, include: { resource: true } }))
+    sent += await sendPush({ title: `Morgen reserviert: ${b.resource.name}`, body: b.resource.handover ? `Abholung/Schlüssel: ${b.resource.handover}` : (b.timeText ?? "Viel Spaß!"), url: "/reservierung" }, [b.personId]);
+  // Reservierungen aufräumen: abgelehnte/stornierte nach 30 Tagen, alle anderen ein Jahr nach Ende
+  await db.booking.deleteMany({ where: { OR: [{ status: { in: ["ABGELEHNT", "STORNIERT"] }, endDate: { lt: addDays(t, -30) } }, { endDate: { lt: addDays(t, -365) } }] } });
+  // 4) Aufräumen: Brett-Beiträge, die seit 30 Tagen abgelaufen sind, und verwaiste Dateien
   for (const old of await db.boardPost.findMany({ where: { expiresAt: { lt: addDays(t, -30) } }, select: { id: true } })) { await removePhotosOf({ postId: old.id }); await db.boardPost.delete({ where: { id: old.id } }); }
   const swept = await sweepOrphans();
   await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
