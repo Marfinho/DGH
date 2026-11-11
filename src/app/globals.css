@@ -25,3 +25,10 @@
   .label { @apply mb-1 block text-sm font-semibold text-stone-600; }
   summary { @apply cursor-pointer; }
 }
+
+/* Drucken (Laufzettel, Materialliste): nur der Inhalt */
+@media print {
+  body > header, nav[aria-label="Hauptmenü"] { display: none !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  body { background: #fff !important; }
+}

@@ -4,12 +4,13 @@ import { db } from "@/lib/db";
 import { relativeLabel } from "@/lib/dates";
 import { PageTitle } from "@/components/ui";
 import { formatMoney } from "@/lib/money";
-import { updateTemplate, deleteTemplate, saveTplMilestone, deleteTplMilestone, saveTplTask, deleteTplTask, saveTplArea, deleteTplArea } from "../actions";
+import { updateTemplate, deleteTemplate, saveTplMilestone, deleteTplMilestone, saveTplTask, deleteTplTask, saveTplArea, deleteTplArea, deleteTplSlot, deleteTplSchedule, deleteTplMaterial } from "../actions";
+import { sortSchedule, timeRange } from "@/lib/plan";
 
 export default async function VorlageDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireUser("ORGANISATOR");
   const id = Number((await params).id);
-  const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } }, budgetItems: { orderBy: { id: "asc" } }, areas: { orderBy: { sort: "asc" } } } });
+  const t = await db.template.findUnique({ where: { id }, include: { milestones: { orderBy: { offsetDays: "asc" } }, tasks: { orderBy: { offsetDays: "asc" } }, budgetItems: { orderBy: { id: "asc" } }, areas: { orderBy: { sort: "asc" } }, slots: { orderBy: { sort: "asc" } }, schedule: true, material: { orderBy: { sort: "asc" } } } });
   if (!t) notFound();
 
   const taskForm = (task: (typeof t.tasks)[number] | null) => (
@@ -80,6 +81,23 @@ export default async function VorlageDetail({ params }: { params: Promise<{ id: 
         ))}
         <div className="card">{taskForm(null)}</div>
       </div>
+
+      {(t.slots.length > 0 || t.schedule.length > 0 || t.material.length > 0) && <p className="mt-6 text-sm text-stone-600">Helfer-Schichten, Ablauf und Material werden bei neuen Veranstaltungen übernommen. Zum Ändern: in einer Veranstaltung anpassen und „Als Vorlage speichern“ – oder hier einzelne Einträge entfernen.</p>}
+      {t.slots.length > 0 && (
+        <section className="card mt-3"><h2 className="mb-1">Helfer-Schichten</h2>
+          <ul className="text-sm">{t.slots.map((s) => <li key={s.id} className="flex items-center gap-2 border-t border-stone-200 py-1.5 first:border-0"><span className="font-semibold">{s.title}</span><span className="text-stone-600">{s.timeText} · {s.capacity} {s.capacity === 1 ? "Platz" : "Plätze"}</span>
+            <form action={deleteTplSlot} className="ml-auto"><input type="hidden" name="id" value={s.id} /><input type="hidden" name="templateId" value={t.id} /><button aria-label={`${s.title} entfernen`} className="text-poster">✕</button></form></li>)}</ul></section>
+      )}
+      {t.schedule.length > 0 && (
+        <section className="card mt-3"><h2 className="mb-1">Ablaufplan</h2>
+          <ul className="text-sm">{sortSchedule(t.schedule).map((s) => <li key={s.id} className="flex items-center gap-2 border-t border-stone-200 py-1.5 first:border-0"><span className="w-36 shrink-0 text-stone-600">{relativeLabel(s.dayOffset)}{s.time ? `, ${timeRange(s.time, s.endTime)}` : ""}</span><span className="font-semibold">{s.title}</span>{s.isPublic && <span className="rounded bg-sun px-1.5 text-xs font-bold uppercase">Programm</span>}
+            <form action={deleteTplSchedule} className="ml-auto"><input type="hidden" name="id" value={s.id} /><input type="hidden" name="templateId" value={t.id} /><button aria-label={`${s.title} entfernen`} className="text-poster">✕</button></form></li>)}</ul></section>
+      )}
+      {t.material.length > 0 && (
+        <section className="card mt-3"><h2 className="mb-1">Material & Einkauf</h2>
+          <ul className="text-sm">{t.material.map((m) => <li key={m.id} className="flex items-center gap-2 border-t border-stone-200 py-1.5 first:border-0"><span className="font-semibold">{m.title}</span><span className="text-stone-600">{[m.quantity, m.source].filter(Boolean).join(" · ")}</span>
+            <form action={deleteTplMaterial} className="ml-auto"><input type="hidden" name="id" value={m.id} /><input type="hidden" name="templateId" value={t.id} /><button aria-label={`${m.title} entfernen`} className="text-poster">✕</button></form></li>)}</ul></section>
+      )}
 
       {t.budgetItems.length > 0 && (
         <section className="card mt-6"><h2 className="mb-1">Budget-Vorlage</h2>

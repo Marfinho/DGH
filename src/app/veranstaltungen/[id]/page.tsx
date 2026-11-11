@@ -14,6 +14,8 @@ import { pushEnabled } from "@/lib/push";
 import { EVENT_STATUS, EVENT_LABEL, TASK_STATUS, TASK_LABEL } from "@/lib/constants";
 import { StatusBadge, Progress, EventHero, OverdueBadge } from "@/components/ui";
 import { AutoSelect } from "@/components/auto-select";
+import { EventTabs } from "@/components/event-tabs";
+import { groupByDay, dayHeading, timeRange, materialSummary } from "@/lib/plan";
 import { quickAssign, updateEvent, saveArea, deleteArea, seedAreas, saveSlot, deleteSlot, saveLessons, deleteEvent, saveMilestone, deleteMilestone, saveTask, cycleTaskStatus, deleteTask, saveAsTemplate } from "../actions";
 
 export default async function EventDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ gebiet?: string; datei?: string; fehler?: string }> }) {
@@ -43,10 +45,22 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
     if (!acc.isFreigeber && !isVorstand && (!ev.published || ev.status === "ARCHIVIERT")) notFound();
     const mine = ev.rsvps.find((r) => r.personId === me.id);
     const yes = ev.rsvps.filter((r) => r.status === "JA");
+    // Programm: nur öffentliche Punkte einer veröffentlichten Veranstaltung
+    const programm = groupByDay(await db.scheduleItem.findMany({ where: { eventId: id, isPublic: true, event: { published: true } }, select: { id: true, dayOffset: true, time: true, endTime: true, title: true, place: true } }));
     return (
       <>
         <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""}${ev.group ? ` · ${ev.group.name}` : ""}`} title={ev.title} />
         {ev.description && <p className="card mb-4 whitespace-pre-line">{ev.description}</p>}
+        {programm.length > 0 && (
+          <section className="card mb-4"><h2 className="mb-2">Programm</h2>
+            {programm.map((g) => (
+              <div key={g.dayOffset} className="mb-2 last:mb-0">
+                {programm.length > 1 && <h3 className="font-display text-lg font-bold uppercase text-stone-600">{dayHeading(ev.date, g.dayOffset).split(" · ")[0]}</h3>}
+                <ol>{g.items.map((it) => <li key={it.id} className="flex flex-wrap items-baseline gap-x-3 border-t-2 border-stone-200 py-1.5 first:border-0"><span className="w-28 shrink-0 font-display text-xl font-bold text-brand-600">{timeRange(it.time, it.endTime)}</span><span className="font-semibold">{it.title}</span>{it.place && <span className="text-sm text-stone-600">{it.place}</span>}</li>)}</ol>
+              </div>
+            ))}
+          </section>
+        )}
         {budgetCard}
         {ev.attachments.filter((a) => a.visible).length > 0 && ev.published && (
           <section className="card mb-4"><h2 className="mb-2">Unterlagen</h2>
@@ -113,11 +127,14 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
     <Link key={href} href={href} aria-current={active ? "true" : undefined} className={`rounded-md border-2 px-3 py-1.5 font-display text-base font-bold uppercase tracking-wide ${active ? "border-brand-600 bg-brand-600 text-white" : "border-brand-600 text-brand-600 hover:bg-brand-50"}`}>{label}{count && <span className="ml-1.5 opacity-80">{count}</span>}</Link>
   );
   const done = ev.tasks.filter((t) => t.status === "ERLEDIGT").length;
+  const [schedCount, mat] = await Promise.all([db.scheduleItem.count({ where: { eventId: id } }), db.materialItem.findMany({ where: { eventId: id }, select: { status: true } })]);
+  const plan = { schedule: schedCount, material: materialSummary(mat) };
 
   return (
     <>
       <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""} · ${EVENT_LABEL[ev.status as keyof typeof EVENT_LABEL]}${ev.published ? " · veröffentlicht" : " · Entwurf"}`} title={ev.title}
         right={<Progress onDark done={done} total={ev.tasks.length} />} />
+      <EventTabs id={id} active="aufgaben" counts={{ aufgaben: `${done}/${ev.tasks.length}`, ablauf: plan.schedule ? String(plan.schedule) : undefined, material: plan.material.total ? `${plan.material.done}/${plan.material.total}` : undefined }} />
 
       {fehler === "gebiet" && <p role="alert" className="mb-4 rounded-md bg-sun p-3 font-semibold">Ein Themengebiet mit diesem Namen gibt es schon.</p>}
       <nav aria-label="Themengebiete" className="mb-4 flex flex-wrap items-center gap-2">

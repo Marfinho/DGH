@@ -41,6 +41,8 @@ model Person {
   pollVotes       PollVote[]
   bookings        Booking[]          @relation("booker")
   decidedBookings Booking[]          @relation("bookingDecider")
+  scheduleItems   ScheduleItem[]
+  materialItems   MaterialItem[]
 }
 
 model Session {
@@ -162,15 +164,18 @@ model WasteDate {
 }
 
 model Template {
-  id          Int                  @id @default(autoincrement())
+  id          Int                    @id @default(autoincrement())
   name        String
   description String?
-  updatedAt   DateTime             @updatedAt
+  updatedAt   DateTime               @updatedAt
   milestones  TemplateMilestone[]
   tasks       TemplateTask[]
   events      Event[]
   budgetItems TemplateBudgetItem[]
   areas       TemplateArea[]
+  slots       TemplateSlot[]
+  schedule    TemplateScheduleItem[]
+  material    TemplateMaterialItem[]
 }
 
 model TemplateMilestone {
@@ -198,31 +203,33 @@ model TemplateTask {
 }
 
 model Event {
-  id                 Int           @id @default(autoincrement())
+  id                 Int            @id @default(autoincrement())
   title              String
   date               DateTime // Kalendertag, UTC-Mitternacht
   location           String?
   description        String?
-  status             String        @default("GEPLANT")
-  published          Boolean       @default(false) // für Bewohner sichtbar
+  status             String         @default("GEPLANT")
+  published          Boolean        @default(false) // für Bewohner sichtbar
   templateId         Int?
-  template           Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  template           Template?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
   lessonsLearned     String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   milestones         Milestone[]
   tasks              Task[]
   log                ActivityLog[]
   slots              HelperSlot[]
   rsvps              Rsvp[]
   budgetCents        Int? // Budgetrahmen für Ausgaben (Cent); leer = kein Rahmen
-  approvalLimitCents Int           @default(0) // Ausgaben bis zu diesem Betrag brauchen keine Freigabe
+  approvalLimitCents Int            @default(0) // Ausgaben bis zu diesem Betrag brauchen keine Freigabe
   budgetItems        BudgetItem[]
   members            EventMember[]
   areas              Area[]
   attachments        Attachment[]
-  group              Group?        @relation(fields: [groupId], references: [id])
+  group              Group?         @relation(fields: [groupId], references: [id])
   groupId            Int?
+  schedule           ScheduleItem[]
+  material           MaterialItem[]
 }
 
 model Milestone {
@@ -501,4 +508,71 @@ model Booking {
   createdAt   DateTime  @default(now())
 
   @@index([resourceId, startDate])
+}
+
+// Helfer-Slot in einer Vorlage (wird bei neuen Veranstaltungen ohne Eintragungen übernommen)
+model TemplateSlot {
+  id          Int      @id @default(autoincrement())
+  templateId  Int
+  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  timeText    String?
+  description String?
+  capacity    Int      @default(1)
+  sort        Int      @default(0)
+}
+
+// Ablaufplan: dayOffset relativ zum Veranstaltungstag (−1 = Aufbau am Vortag), time/endTime als "HH:MM"
+model ScheduleItem {
+  id            Int     @id @default(autoincrement())
+  eventId       Int
+  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  dayOffset     Int     @default(0)
+  time          String?
+  endTime       String?
+  title         String
+  place         String?
+  note          String?
+  isPublic      Boolean @default(false) // erscheint für Bewohner als „Programm“
+  responsibleId Int?
+  responsible   Person? @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
+}
+
+model TemplateScheduleItem {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  dayOffset  Int      @default(0)
+  time       String?
+  endTime    String?
+  title      String
+  place      String?
+  note       String?
+  isPublic   Boolean  @default(false)
+}
+
+// Material- und Einkaufsliste.  status: OFFEN | ORGANISIERT | VOR_ORT
+model MaterialItem {
+  id            Int     @id @default(autoincrement())
+  eventId       Int
+  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title         String
+  quantity      String? // frei, z. B. "10 Sets", "3 Kisten"
+  source        String? // z. B. "eigenes Inventar", "kaufen", "leihen bei Feuerwehr"
+  note          String?
+  status        String  @default("OFFEN")
+  sort          Int     @default(0)
+  responsibleId Int?
+  responsible   Person? @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
+}
+
+model TemplateMaterialItem {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title      String
+  quantity   String?
+  source     String?
+  note       String?
+  sort       Int      @default(0)
 }

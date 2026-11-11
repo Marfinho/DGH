@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { installStandardTemplates, STANDARD_TEMPLATES } from "@/lib/standard-templates";
 
 const off = z.coerce.number().int().min(-1000).max(1000);
 
@@ -68,5 +69,29 @@ export async function saveTplArea(fd: FormData) {
 export async function deleteTplArea(fd: FormData) {
   await requireUser("ORGANISATOR");
   await db.templateArea.delete({ where: { id: Number(fd.get("id")) } });
+  revalidatePath(`/vorlagen/${fd.get("templateId")}`);
+}
+
+/** Fertige Vorlagen (Osterfeuer, Dorfgemeinschaftsfest, Weihnachtsmarkt) anlegen – nur fehlende, vorhandene bleiben unverändert. */
+export async function installStandard(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  const wanted = fd.getAll("name").map(String).filter((n) => STANDARD_TEMPLATES.some((t) => t.name === n));
+  const created = await db.$transaction((tx) => installStandardTemplates(tx, wanted.length ? wanted : undefined));
+  revalidatePath("/vorlagen");
+  redirect(`/vorlagen?neu=${encodeURIComponent(created.join(", "))}`);
+}
+export async function deleteTplSlot(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  await db.templateSlot.delete({ where: { id: Number(fd.get("id")) } });
+  revalidatePath(`/vorlagen/${fd.get("templateId")}`);
+}
+export async function deleteTplSchedule(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  await db.templateScheduleItem.delete({ where: { id: Number(fd.get("id")) } });
+  revalidatePath(`/vorlagen/${fd.get("templateId")}`);
+}
+export async function deleteTplMaterial(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  await db.templateMaterialItem.delete({ where: { id: Number(fd.get("id")) } });
   revalidatePath(`/vorlagen/${fd.get("templateId")}`);
 }
