@@ -14,7 +14,7 @@ export default async function Veranstaltungen() {
   });
   return (
     <>
-      <div className="flex items-center justify-between"><PageTitle>Veranstaltungen</PageTitle>{orga && <Link href="/veranstaltungen/neu" className="btn">Neue Veranstaltung</Link>}</div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><PageTitle>Veranstaltungen</PageTitle><div className="mb-5 flex flex-wrap gap-2"><Link href="/kalender" className="btn-light">📅 Monatsansicht</Link>{orga && <Link href="/veranstaltungen/neu" className="btn">Neue Veranstaltung</Link>}</div></div>
       <ul className="space-y-2">
         {events.map((e) => (
           <li key={e.id}><Link href={`/veranstaltungen/${e.id}`} className="card flex flex-wrap items-center justify-between gap-2 hover:border-brand-600">
