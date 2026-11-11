@@ -9,34 +9,42 @@ datasource db {
 
 // Status als String (SQLite kennt keine Enums); Werte siehe src/lib/constants.ts
 model Person {
-  id             Int                @id @default(autoincrement())
-  name           String
-  email          String?            @unique
-  phone          String?
-  role           String             @default("BEWOHNER") // BEWOHNER | ORGANISATOR | ADMIN
-  calToken       String?            @unique // geheimer Token für den iCal-Feed
-  createdAt      DateTime           @default(now())
-  lastLoginAt    DateTime?
-  tasks          Task[]
-  sessions       Session[]
-  invites        Invite[]
-  loginTokens    LoginToken[]
-  signups        HelperSignup[]
-  rsvps          Rsvp[]
-  eventMembers   EventMember[]
-  requestedItems BudgetItem[]       @relation("requested")
-  decidedItems   BudgetItem[]       @relation("decided")
-  pushSubs       PushSubscription[]
-  newsPosts      NewsPost[]
-  areas          Area[]
-  attachments    Attachment[]
-  wastePush      Boolean            @default(false) // Müll-Erinnerung am Vorabend
-  wasteTypes     String? // kommagetrennt; leer = alle
-  groupMembers   GroupMember[]
-  boardPosts     BoardPost[]
-  issues         Issue[]
-  group          Group?             @relation(fields: [groupId], references: [id])
-  groupId        Int?
+  id              Int                @id @default(autoincrement())
+  name            String
+  email           String?            @unique
+  phone           String?
+  role            String             @default("BEWOHNER") // BEWOHNER | ORGANISATOR | ADMIN
+  calToken        String?            @unique // geheimer Token für den iCal-Feed
+  createdAt       DateTime           @default(now())
+  lastLoginAt     DateTime?
+  tasks           Task[]
+  sessions        Session[]
+  invites         Invite[]
+  loginTokens     LoginToken[]
+  signups         HelperSignup[]
+  rsvps           Rsvp[]
+  eventMembers    EventMember[]
+  requestedItems  BudgetItem[]       @relation("requested")
+  decidedItems    BudgetItem[]       @relation("decided")
+  pushSubs        PushSubscription[]
+  newsPosts       NewsPost[]
+  areas           Area[]
+  attachments     Attachment[]
+  wastePush       Boolean            @default(false) // Müll-Erinnerung am Vorabend
+  wasteTypes      String? // kommagetrennt; leer = alle
+  groupMembers    GroupMember[]
+  boardPosts      BoardPost[]
+  issues          Issue[]
+  group           Group?             @relation(fields: [groupId], references: [id])
+  groupId         Int?
+  polls           Poll[]
+  pollVotes       PollVote[]
+  bookings        Booking[]          @relation("booker")
+  decidedBookings Booking[]          @relation("bookingDecider")
+  scheduleItems   ScheduleItem[]
+  materialItems   MaterialItem[]
+  meetingInvites  MeetingInvitee[]
+  meetingTodos    MeetingTodo[]
 }
 
 model Session {
@@ -158,15 +166,18 @@ model WasteDate {
 }
 
 model Template {
-  id          Int                  @id @default(autoincrement())
+  id          Int                    @id @default(autoincrement())
   name        String
   description String?
-  updatedAt   DateTime             @updatedAt
+  updatedAt   DateTime               @updatedAt
   milestones  TemplateMilestone[]
   tasks       TemplateTask[]
   events      Event[]
   budgetItems TemplateBudgetItem[]
   areas       TemplateArea[]
+  slots       TemplateSlot[]
+  schedule    TemplateScheduleItem[]
+  material    TemplateMaterialItem[]
 }
 
 model TemplateMilestone {
@@ -194,31 +205,33 @@ model TemplateTask {
 }
 
 model Event {
-  id                 Int           @id @default(autoincrement())
+  id                 Int            @id @default(autoincrement())
   title              String
   date               DateTime // Kalendertag, UTC-Mitternacht
   location           String?
   description        String?
-  status             String        @default("GEPLANT")
-  published          Boolean       @default(false) // für Bewohner sichtbar
+  status             String         @default("GEPLANT")
+  published          Boolean        @default(false) // für Bewohner sichtbar
   templateId         Int?
-  template           Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  template           Template?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
   lessonsLearned     String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   milestones         Milestone[]
   tasks              Task[]
   log                ActivityLog[]
   slots              HelperSlot[]
   rsvps              Rsvp[]
   budgetCents        Int? // Budgetrahmen für Ausgaben (Cent); leer = kein Rahmen
-  approvalLimitCents Int           @default(0) // Ausgaben bis zu diesem Betrag brauchen keine Freigabe
+  approvalLimitCents Int            @default(0) // Ausgaben bis zu diesem Betrag brauchen keine Freigabe
   budgetItems        BudgetItem[]
   members            EventMember[]
   areas              Area[]
   attachments        Attachment[]
-  group              Group?        @relation(fields: [groupId], references: [id])
+  group              Group?         @relation(fields: [groupId], references: [id])
   groupId            Int?
+  schedule           ScheduleItem[]
+  material           MaterialItem[]
 }
 
 model Milestone {
@@ -423,4 +436,210 @@ model WasteSource {
   lastCount   Int         @default(0)
   createdAt   DateTime    @default(now())
   dates       WasteDate[]
+}
+
+// Umfrage/Abstimmung. closesOn = letzter Tag, an dem abgestimmt werden kann (UTC-Mitternacht); leer = offen bis manuell beendet
+model Poll {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  multiple    Boolean      @default(false) // mehrere Antworten erlaubt
+  closesOn    DateTime?
+  closedAt    DateTime? // manuell beendet
+  createdById Int?
+  createdBy   Person?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  options     PollOption[]
+  votes       PollVote[]
+}
+
+model PollOption {
+  id     Int        @id @default(autoincrement())
+  pollId Int
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  sort   Int        @default(0)
+  votes  PollVote[]
+}
+
+// Stimme einer Person für eine Antwort (Ergebnisse werden nur als Summen angezeigt)
+model PollVote {
+  id        Int        @id @default(autoincrement())
+  pollId    Int
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  Int
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  personId  Int
+  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([optionId, personId])
+  @@index([pollId, personId])
+}
+
+// Reservierbares Gemeinschaftsgut: Raum (Dorfgemeinschaftshaus) oder Gerät (Bierzeltgarnituren, Pavillon …)
+model Resource {
+  id            Int       @id @default(autoincrement())
+  name          String
+  kind          String    @default("GERAET") // RAUM | GERAET
+  description   String?
+  handover      String? // Abholung/Schlüssel, z. B. "Schlüssel bei Familie Meier, Dorfstr. 5"
+  needsApproval Boolean   @default(true) // false = Buchung sofort bestätigt
+  active        Boolean   @default(true)
+  sort          Int       @default(0)
+  bookings      Booking[]
+}
+
+// Reservierung über ganze Kalendertage (UTC-Mitternacht), Uhrzeit nur als Freitext
+// status: ANGEFRAGT | BESTAETIGT | ABGELEHNT | STORNIERT  (ANGEFRAGT und BESTAETIGT blockieren den Zeitraum)
+model Booking {
+  id          Int       @id @default(autoincrement())
+  resourceId  Int
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  personId    Int
+  person      Person    @relation("booker", fields: [personId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  timeText    String?
+  purpose     String
+  status      String    @default("ANGEFRAGT")
+  note        String? // Antwort der Orga
+  decidedById Int?
+  decidedBy   Person?   @relation("bookingDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([resourceId, startDate])
+}
+
+// Helfer-Slot in einer Vorlage (wird bei neuen Veranstaltungen ohne Eintragungen übernommen)
+model TemplateSlot {
+  id          Int      @id @default(autoincrement())
+  templateId  Int
+  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  timeText    String?
+  description String?
+  capacity    Int      @default(1)
+  sort        Int      @default(0)
+}
+
+// Ablaufplan: dayOffset relativ zum Veranstaltungstag (−1 = Aufbau am Vortag), time/endTime als "HH:MM"
+model ScheduleItem {
+  id            Int     @id @default(autoincrement())
+  eventId       Int
+  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  dayOffset     Int     @default(0)
+  time          String?
+  endTime       String?
+  title         String
+  place         String?
+  note          String?
+  isPublic      Boolean @default(false) // erscheint für Bewohner als „Programm“
+  responsibleId Int?
+  responsible   Person? @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
+}
+
+model TemplateScheduleItem {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  dayOffset  Int      @default(0)
+  time       String?
+  endTime    String?
+  title      String
+  place      String?
+  note       String?
+  isPublic   Boolean  @default(false)
+}
+
+// Material- und Einkaufsliste.  status: OFFEN | ORGANISIERT | VOR_ORT
+model MaterialItem {
+  id            Int     @id @default(autoincrement())
+  eventId       Int
+  event         Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title         String
+  quantity      String? // frei, z. B. "10 Sets", "3 Kisten"
+  source        String? // z. B. "eigenes Inventar", "kaufen", "leihen bei Feuerwehr"
+  note          String?
+  status        String  @default("OFFEN")
+  sort          Int     @default(0)
+  responsibleId Int?
+  responsible   Person? @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
+}
+
+model TemplateMaterialItem {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title      String
+  quantity   String?
+  source     String?
+  note       String?
+  sort       Int      @default(0)
+}
+
+// Versammlung/Sitzung des Orga-Teams (nur Organisator/Admin). date = Kalendertag (UTC-Mitternacht), Zeiten als "HH:MM" (Ortszeit Berlin)
+model Meeting {
+  id             Int                 @id @default(autoincrement())
+  title          String
+  date           DateTime
+  startTime      String
+  endTime        String?
+  location       String?
+  invitationText String? // persönlicher Text in der Einladung
+  chair          String? // Sitzungsleitung (Name als Text, bleibt im Protokoll erhalten)
+  minuteTaker    String? // Protokoll
+  guests         String? // Gäste ohne Konto
+  generalNotes   String? // Verschiedenes / Allgemeines
+  finalizedAt    DateTime? // Protokoll abgeschlossen = schreibgeschützt
+  protocolSentAt DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  agenda         MeetingAgendaItem[]
+  invitees       MeetingInvitee[]
+  todos          MeetingTodo[]
+}
+
+model MeetingAgendaItem {
+  id        Int           @id @default(autoincrement())
+  meetingId Int
+  meeting   Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sort      Int           @default(0)
+  title     String
+  notes     String? // Protokoll zum Punkt
+  decision  String? // Beschluss
+  todos     MeetingTodo[]
+}
+
+// Eingeladene Person. name wird beim Einladen festgehalten, damit Protokolle auch nach Kontolöschung vollständig bleiben.
+// response: OFFEN | ZUGESAGT | ABGESAGT.  mailStatus: GESENDET | KEINE_ADRESSE | FEHLER | NICHT_KONFIGURIERT
+model MeetingInvitee {
+  id         Int       @id @default(autoincrement())
+  meetingId  Int
+  meeting    Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  personId   Int?
+  person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  name       String
+  response   String    @default("OFFEN")
+  present    Boolean   @default(false)
+  invitedAt  DateTime?
+  mailStatus String?
+
+  @@unique([meetingId, personId])
+}
+
+// To-do aus dem Protokoll
+model MeetingTodo {
+  id           Int                @id @default(autoincrement())
+  meetingId    Int
+  meeting      Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  agendaItemId Int?
+  agendaItem   MeetingAgendaItem? @relation(fields: [agendaItemId], references: [id], onDelete: SetNull)
+  title        String
+  assigneeId   Int?
+  assignee     Person?            @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueDate      DateTime?
+  done         Boolean            @default(false)
+  createdAt    DateTime           @default(now())
 }

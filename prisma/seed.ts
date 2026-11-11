@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { installStandardTemplates } from "../src/lib/standard-templates";
 const db = new PrismaClient();
 
 type M = [string, number]; type T = [string, number, number | null, string?]; // Titel, Offset, Meilenstein-Index
@@ -36,5 +37,7 @@ async function main() {
     [["Termin und Route festlegen", -60, 0], ["Feuerwehr und Polizei informieren", -45, 0], ["Musikbegleitung anfragen", -30, 0], ["Bekanntmachung in Kita/Schule", -21, 0],
      ["Streckenposten einteilen", -7, 1], ["Wegstrecke abgehen", -2, 1], ["Aufräumen und Danke sagen", 1, null]]);
   for (const n of Object.keys(AREAS)) await addAreas(n);
+  const added = await installStandardTemplates(db); // Osterfeuer, Dorfgemeinschaftsfest, Weihnachtsmarkt
+  if (added.length) console.log(`Vorlagen angelegt: ${added.join(", ")}`);
 }
 main().finally(() => db.$disconnect());

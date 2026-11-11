@@ -10,14 +10,17 @@ import { uploadFile, deleteFile, toggleVisible } from "../dateien";
 import { summarize } from "@/lib/budget";
 import { formatMoney } from "@/lib/money";
 import { today, toInput, formatDay } from "@/lib/dates";
+import { pushEnabled } from "@/lib/push";
 import { EVENT_STATUS, EVENT_LABEL, TASK_STATUS, TASK_LABEL } from "@/lib/constants";
 import { StatusBadge, Progress, EventHero, OverdueBadge } from "@/components/ui";
 import { AutoSelect } from "@/components/auto-select";
+import { EventTabs } from "@/components/event-tabs";
+import { groupByDay, dayHeading, timeRange, materialSummary } from "@/lib/plan";
 import { quickAssign, updateEvent, saveArea, deleteArea, seedAreas, saveSlot, deleteSlot, saveLessons, deleteEvent, saveMilestone, deleteMilestone, saveTask, cycleTaskStatus, deleteTask, saveAsTemplate } from "../actions";
 
-export default async function EventDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ gebiet?: string; datei?: string; fehler?: string }> }) {
+export default async function EventDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ gebiet?: string; datei?: string; fehler?: string; ansicht?: string }> }) {
   const me = await requireUser();
-  const { gebiet, datei, fehler } = await searchParams;
+  const { gebiet, datei, fehler, ansicht } = await searchParams;
   const id = Number((await params).id);
   const [ev, people, templates] = await Promise.all([
     db.event.findUnique({ where: { id }, include: { group: true, slots: { orderBy: { id: "asc" }, include: { signups: { include: { person: true } } } }, rsvps: { include: { person: true } }, attachments: { where: { budgetItemId: null }, orderBy: { createdAt: "desc" }, include: { uploadedBy: true } }, milestones: { orderBy: { dueDate: "asc" } }, areas: { orderBy: [{ sort: "asc" }, { name: "asc" }], include: { lead: true } }, tasks: { orderBy: [{ dueDate: "asc" }, { sort: "asc" }], include: { assignee: true, area: true } }, log: { orderBy: { createdAt: "desc" }, take: 15 } } }),
@@ -37,16 +40,36 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
       <Link href={`/veranstaltungen/${id}/budget`} className="btn mt-2">Budget öffnen</Link>
     </section>
   );
-  if (!hasRole(me, "ORGANISATOR")) {
+  const isOrga = hasRole(me, "ORGANISATOR");
+  // Bürgeransicht: Orga sieht die Seite wie Bewohner (und kann selbst zusagen/sich eintragen)
+  if (!isOrga || ansicht === "buerger") {
     const isVorstand = ev.groupId ? await canManageGroup(ev.groupId, me) : false;
-    if (!acc.isFreigeber && !isVorstand && (!ev.published || ev.status === "ARCHIVIERT")) notFound();
+    if (!isOrga && !acc.isFreigeber && !isVorstand && (!ev.published || ev.status === "ARCHIVIERT")) notFound();
     const mine = ev.rsvps.find((r) => r.personId === me.id);
     const yes = ev.rsvps.filter((r) => r.status === "JA");
+    // Programm: nur öffentliche Punkte einer veröffentlichten Veranstaltung
+    const programm = groupByDay(await db.scheduleItem.findMany({ where: { eventId: id, isPublic: true, ...(isOrga ? {} : { event: { published: true } }) }, select: { id: true, dayOffset: true, time: true, endTime: true, title: true, place: true } }));
     return (
       <>
+        {isOrga && (
+          <p role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-sun p-3 text-sm font-semibold">
+            <span>👁 Bürgeransicht – so sehen Bewohner diese Seite.{!ev.published ? " Achtung: noch Entwurf, Bewohner sehen sie noch gar nicht." : ""}</span>
+            <Link href={`/veranstaltungen/${id}`} className="btn-light ml-auto !min-h-[36px]">Zurück zur Planung</Link>
+          </p>
+        )}
         <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""}${ev.group ? ` · ${ev.group.name}` : ""}`} title={ev.title} />
         {ev.description && <p className="card mb-4 whitespace-pre-line">{ev.description}</p>}
-        {budgetCard}
+        {programm.length > 0 && (
+          <section className="card mb-4"><h2 className="mb-2">Programm</h2>
+            {programm.map((g) => (
+              <div key={g.dayOffset} className="mb-2 last:mb-0">
+                {programm.length > 1 && <h3 className="font-display text-lg font-bold uppercase text-stone-600">{dayHeading(ev.date, g.dayOffset).split(" · ")[0]}</h3>}
+                <ol>{g.items.map((it) => <li key={it.id} className="grid grid-cols-[5.5rem_1fr] items-baseline gap-x-3 border-t-2 border-stone-200 py-1.5 first:border-0 sm:grid-cols-[7rem_1fr]"><span className="font-display text-xl font-bold text-brand-600">{timeRange(it.time, it.endTime) || "ganztags"}</span><span><span className="font-semibold">{it.title}</span>{it.place && <span className="block text-sm text-stone-600">{it.place}</span>}</span></li>)}</ol>
+              </div>
+            ))}
+          </section>
+        )}
+        {!isOrga && budgetCard}
         {ev.attachments.filter((a) => a.visible).length > 0 && ev.published && (
           <section className="card mb-4"><h2 className="mb-2">Unterlagen</h2>
             <ul>{ev.attachments.filter((a) => a.visible).map((a) => <li key={a.id} className="border-t-2 border-stone-200 py-2 first:border-0"><a href={`/api/files/${a.id}`} className="font-semibold text-brand-600 underline">{a.name}</a> <span className="text-sm text-stone-500">({formatSize(a.size)})</span></li>)}</ul></section>
@@ -112,11 +135,15 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
     <Link key={href} href={href} aria-current={active ? "true" : undefined} className={`rounded-md border-2 px-3 py-1.5 font-display text-base font-bold uppercase tracking-wide ${active ? "border-brand-600 bg-brand-600 text-white" : "border-brand-600 text-brand-600 hover:bg-brand-50"}`}>{label}{count && <span className="ml-1.5 opacity-80">{count}</span>}</Link>
   );
   const done = ev.tasks.filter((t) => t.status === "ERLEDIGT").length;
+  const [schedCount, mat] = await Promise.all([db.scheduleItem.count({ where: { eventId: id } }), db.materialItem.findMany({ where: { eventId: id }, select: { status: true } })]);
+  const plan = { schedule: schedCount, material: materialSummary(mat) };
 
   return (
     <>
       <EventHero kicker={`${formatDay(ev.date)}${ev.location ? ` · ${ev.location}` : ""} · ${EVENT_LABEL[ev.status as keyof typeof EVENT_LABEL]}${ev.published ? " · veröffentlicht" : " · Entwurf"}`} title={ev.title}
         right={<Progress onDark done={done} total={ev.tasks.length} />} />
+      <p className="-mt-2 mb-3 text-right text-sm"><Link href={`/veranstaltungen/${id}?ansicht=buerger`} className="font-semibold text-brand-600 hover:underline">👁 Bürgeransicht</Link></p>
+      <EventTabs id={id} active="aufgaben" counts={{ aufgaben: `${done}/${ev.tasks.length}`, ablauf: plan.schedule ? String(plan.schedule) : undefined, material: plan.material.total ? `${plan.material.done}/${plan.material.total}` : undefined }} />
 
       {fehler === "gebiet" && <p role="alert" className="mb-4 rounded-md bg-sun p-3 font-semibold">Ein Themengebiet mit diesem Namen gibt es schon.</p>}
       <nav aria-label="Themengebiete" className="mb-4 flex flex-wrap items-center gap-2">
@@ -238,6 +265,7 @@ export default async function EventDetail({ params, searchParams }: { params: Pr
           <div><label className="label">Status</label><select name="status" defaultValue={ev.status} className="input">{EVENT_STATUS.map((s) => <option key={s} value={s}>{EVENT_LABEL[s]}</option>)}</select></div>
           <div className="sm:col-span-2"><label className="label">Beschreibung</label><textarea name="description" defaultValue={ev.description ?? ""} rows={2} className="input" /></div>
           <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="published" defaultChecked={ev.published} /> Für Bewohner veröffentlichen (Titel, Datum, Ort, Beschreibung, Helfer-Slots, Zu-/Absage – keine Aufgaben)</label>
+          {!ev.published && pushEnabled() && <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="notify" /> Beim Veröffentlichen alle per Push einladen</label>}
           <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="shift" /> Bei Datumsänderung alle Fristen mitverschieben</label>
           <button className="btn w-fit">Speichern</button></form>
         <form action={deleteEvent} className="mt-4"><input type="hidden" name="id" value={ev.id} /><button className="btn-danger">Veranstaltung löschen</button></form>

@@ -7,6 +7,8 @@ import { formatMoney, toInputMoney } from "@/lib/money";
 import { summarize, canPay, STATUS_LABEL, type BudgetKind, type ItemStatus } from "@/lib/budget";
 import { formatDay } from "@/lib/dates";
 import { EventHero } from "@/components/ui";
+import { EventTabs } from "@/components/event-tabs";
+import { hasRole } from "@/lib/auth";
 import { formatSize } from "@/lib/files";
 import { uploadFile, deleteFile } from "../../dateien";
 import { saveBudgetSettings, saveItem, deleteItem, submitItem, decideItem, markPaid, reopenItem, addFreigeber, removeFreigeber } from "./actions";
@@ -107,6 +109,7 @@ export default async function BudgetPage({ params, searchParams }: { params: Pro
     <>
       <p className="mb-2 text-sm"><Link href={`/veranstaltungen/${id}`} className="font-semibold text-brand-600 hover:underline">← {ev.title}</Link></p>
       <EventHero kicker={`Budget & Freigaben · ${formatDay(ev.date)}`} title={ev.title} />
+      {hasRole(me, "ORGANISATOR") && <EventTabs id={id} active="budget" />}
 
       {datei && <p role="alert" className="mb-4 rounded-md bg-sun p-3 font-semibold">{datei}</p>}
       {fehler === "begruendung" && <p role="alert" className="mb-4 rounded-md bg-sun p-3 font-semibold text-ink">Bitte gib bei einer Ablehnung eine kurze Begründung an.</p>}

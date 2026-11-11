@@ -14,6 +14,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/src/lib/backup.ts ./src/lib/backup.ts
+COPY --from=build /app/src/lib/standard-templates.ts ./src/lib/standard-templates.ts
 COPY --from=build /app/public ./public
 COPY --from=build /app/next.config.mjs ./next.config.mjs
 COPY --from=build /app/package.json ./

@@ -4,7 +4,7 @@ import { addDays, diffDays } from "./dates";
 /** Legt Veranstaltung samt Meilensteinen/Aufgaben aus einer Vorlage an; Termine = Eventdatum + Offset. */
 export async function createEventFromTemplate(input: { title: string; date: Date; location?: string | null; templateId?: number | null }) {
   const tpl = input.templateId
-    ? await db.template.findUnique({ where: { id: input.templateId }, include: { milestones: true, tasks: true, budgetItems: true, areas: true } })
+    ? await db.template.findUnique({ where: { id: input.templateId }, include: { milestones: true, tasks: true, budgetItems: true, areas: true, slots: true, schedule: true, material: true } })
     : null;
   return db.$transaction(async (tx) => {
     const ev = await tx.event.create({ data: { title: input.title, date: input.date, location: input.location || null, templateId: tpl?.id ?? null } });
@@ -23,6 +23,9 @@ export async function createEventFromTemplate(input: { title: string; date: Date
     if (tpl) {
       const names = new Map((await tx.area.findMany({ where: { eventId: ev.id } })).map((a) => [a.name, a.id]));
       const tplAreaName = new Map(tpl.areas.map((a) => [a.id, a.name]));
+      for (const sl of tpl.slots.sort((a, b) => a.sort - b.sort)) await tx.helperSlot.create({ data: { eventId: ev.id, title: sl.title, timeText: sl.timeText, description: sl.description, capacity: sl.capacity } });
+      for (const s of tpl.schedule) await tx.scheduleItem.create({ data: { eventId: ev.id, dayOffset: s.dayOffset, time: s.time, endTime: s.endTime, title: s.title, place: s.place, note: s.note, isPublic: s.isPublic } });
+      for (const m of tpl.material.sort((a, b) => a.sort - b.sort)) await tx.materialItem.create({ data: { eventId: ev.id, title: m.title, quantity: m.quantity, source: m.source, note: m.note, sort: m.sort } });
       for (const b of tpl.budgetItems) await tx.budgetItem.create({ data: { eventId: ev.id, kind: b.kind, title: b.title, category: b.category, plannedCents: b.plannedCents, areaId: b.areaId ? names.get(tplAreaName.get(b.areaId) ?? "") ?? null : null } });
     }
     await tx.activityLog.create({ data: { eventId: ev.id, text: tpl ? `Veranstaltung aus Vorlage „${tpl.name}“ angelegt` : "Veranstaltung angelegt" } });
@@ -32,7 +35,7 @@ export async function createEventFromTemplate(input: { title: string; date: Date
 
 /** Speichert die Veranstaltung als neue Vorlage oder überschreibt eine bestehende. Offsets = Fälligkeit − Eventdatum. */
 export async function saveEventAsTemplate(eventId: number, target: { newName: string } | { templateId: number }) {
-  const ev = await db.event.findUniqueOrThrow({ where: { id: eventId }, include: { milestones: true, tasks: true, budgetItems: true, areas: true } });
+  const ev = await db.event.findUniqueOrThrow({ where: { id: eventId }, include: { milestones: true, tasks: true, budgetItems: true, areas: true, slots: { orderBy: { id: "asc" } }, schedule: true, material: { orderBy: [{ sort: "asc" }, { id: "asc" }] } } });
   return db.$transaction(async (tx) => {
     let id: number, name: string;
     if ("templateId" in target) {
@@ -41,6 +44,9 @@ export async function saveEventAsTemplate(eventId: number, target: { newName: st
       await tx.templateMilestone.deleteMany({ where: { templateId: t.id } });
       await tx.templateBudgetItem.deleteMany({ where: { templateId: t.id } });
       await tx.templateArea.deleteMany({ where: { templateId: t.id } });
+      await tx.templateSlot.deleteMany({ where: { templateId: t.id } });
+      await tx.templateScheduleItem.deleteMany({ where: { templateId: t.id } });
+      await tx.templateMaterialItem.deleteMany({ where: { templateId: t.id } });
       id = t.id; name = t.name;
     } else {
       const t = await tx.template.create({ data: { name: target.newName } });
@@ -57,6 +63,9 @@ export async function saveEventAsTemplate(eventId: number, target: { newName: st
       await tx.templateTask.create({ data: { templateId: id, title: t.title, description: t.description, sort: t.sort, offsetDays: diffDays(t.dueDate, ev.date), milestoneId: t.milestoneId ? map.get(t.milestoneId) ?? null : null, areaId: t.areaId ? areaMap.get(t.areaId) ?? null : null } });
     }
     for (const b of ev.budgetItems) await tx.templateBudgetItem.create({ data: { templateId: id, kind: b.kind, title: b.title, category: b.category, plannedCents: b.plannedCents, areaId: b.areaId ? areaMap.get(b.areaId) ?? null : null } });
+    for (const [i, sl] of ev.slots.entries()) await tx.templateSlot.create({ data: { templateId: id, title: sl.title, timeText: sl.timeText, description: sl.description, capacity: sl.capacity, sort: i } });
+    for (const s of ev.schedule) await tx.templateScheduleItem.create({ data: { templateId: id, dayOffset: s.dayOffset, time: s.time, endTime: s.endTime, title: s.title, place: s.place, note: s.note, isPublic: s.isPublic } });
+    for (const [i, m] of ev.material.entries()) await tx.templateMaterialItem.create({ data: { templateId: id, title: m.title, quantity: m.quantity, source: m.source, note: m.note, sort: i } });
     await tx.activityLog.create({ data: { eventId, text: `Als Vorlage „${name}“ gespeichert` } });
     return id;
   });

@@ -1,6 +1,10 @@
+# Fester Projektname: Volumes heißen dorfplaner_*, unabhängig vom Ordnernamen (wichtig neben anderen Projekten).
+name: dorfplaner
+
 services:
   app:
     build: .
+    image: dorfplaner-app:latest
     restart: unless-stopped
     env_file: .env
     environment:
@@ -8,7 +12,10 @@ services:
       UPLOAD_DIR: /data/uploads
     volumes:
       - dorfplaner-data:/data
-    expose: ["3000"]
+    # Nur lokal erreichbar – davor sitzt ein Reverse Proxy (Caddy/nginx auf dem Server oder der Caddy unten).
+    # APP_PORT bewusst nicht 3000/3001/5432, die belegen auf dem VPS oft andere Projekte.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3100}:3000"
 
   # Zeitgesteuerte Aufrufe (UTC): 06:00 Erinnerungen + Aufräumen (7–8 Uhr), 16:00 Müll-Erinnerung (17–18 Uhr)
   reminders:
@@ -29,7 +36,7 @@ services:
   # Tägliches Backup (~3 Uhr) in das Volume: letzte 14 DB-Snapshots + Spiegel der Uploads.
   # Wichtig: zusätzlich regelmäßig extern sichern (siehe README)!
   backup:
-    build: .
+    image: dorfplaner-app:latest
     restart: unless-stopped
     env_file: .env
     environment:
@@ -49,7 +56,10 @@ services:
         done
     depends_on: [app]
 
+  # Eigener Caddy nur, wenn auf dem Server noch nichts Port 80/443 belegt: COMPOSE_PROFILES=caddy in der .env.
+  # Läuft schon ein Reverse Proxy (z. B. für andere Projekte), richtet deploy/install.sh dort einen Eintrag ein.
   caddy:
+    profiles: ["caddy"]
     image: caddy:2
     restart: unless-stopped
     ports: ["80:80", "443:443"]

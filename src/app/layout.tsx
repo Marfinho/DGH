@@ -23,10 +23,16 @@ export const viewport: Viewport = { themeColor: "#0B4F2A", width: "device-width"
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const u = await getUser();
-  // Hauptpunkte (Handy: Tab-Leiste, Rest unter „Mehr“)
-  // Handy: Tab-Leiste mit den Hauptpunkten, alles andere unter „Mehr“. Desktop: erweiterte Kopfzeile.
-  const main: NavItem[] = [{ href: "/", label: "Start" }, { href: "/veranstaltungen", label: "Termine" }, { href: "/meine-aufgaben", label: "Aufgaben" }, { href: "/brett", label: "Brett" }];
-  const top: NavItem[] = [...main, { href: "/neuigkeiten", label: "Neuigkeiten" }, { href: "/gruppen", label: "Vereine" }, { href: "/muell", label: "Müll" }, { href: "/anliegen", label: "Anliegen" }, { href: "/mehr", label: "Mehr" }];
+  // Zwei Gesichter: Bewohner bekommen eine schlanke Bürger-App, die Orga zusätzlich den Bereich „Planung“.
+  // Handy: Tab-Leiste mit den Hauptpunkten, alles andere unter „Mehr“. Desktop: Kopfzeile (bewusst kurz, damit sie einzeilig bleibt).
+  const orga = !!u && hasRole(u, "ORGANISATOR");
+  const termine: NavItem = { href: "/veranstaltungen", label: "Termine", match: ["/kalender"] };
+  const main: NavItem[] = orga
+    ? [{ href: "/", label: "Start" }, termine, { href: "/planung", label: "Planung", match: ["/vorlagen", "/archiv", "/aushang", "/versammlungen"] }, { href: "/meine-aufgaben", label: "Aufgaben" }]
+    : [{ href: "/", label: "Start" }, termine, { href: "/brett", label: "Brett", match: ["/fundbuero"] }, { href: "/muell", label: "Müll" }];
+  const top: NavItem[] = orga
+    ? [...main, { href: "/brett", label: "Brett", match: ["/fundbuero"], wide: true }, { href: "/neuigkeiten", label: "Neuigkeiten", wide: true }, { href: "/mehr", label: "Mehr" }]
+    : [...main, { href: "/neuigkeiten", label: "Neuigkeiten", wide: true }, { href: "/umfragen", label: "Umfragen", wide: true }, { href: "/mehr", label: "Mehr" }];
   return (
     <html lang="de">
       <body className="min-h-screen">
@@ -38,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {u && <TopNav items={top} />}
             {u && (
               <span className="ml-auto flex items-center gap-3 text-sm font-semibold">
-                <Link href="/profil" className="hidden text-ink hover:text-brand-600 sm:inline">{u.name}</Link>
+                <Link href="/profil" className="hidden text-ink hover:text-brand-600 xl:inline">{u.name}</Link>
                 <form action={logout}><button className="rounded-md border-2 border-brand-600 px-3 py-1.5 font-display text-base font-bold uppercase text-brand-600 hover:bg-brand-50">Abmelden</button></form>
               </span>
             )}
