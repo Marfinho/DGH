@@ -60,7 +60,9 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
     const p = new URLSearchParams({ monat: o.monat ?? monthKey(month), ...(z.length === CAL_KINDS.length ? {} : { zeige: z.join(",") }) });
     return `/kalender?${p}`;
   };
-  const visibleKinds = CAL_KINDS.filter((k) => k !== "AUFGABE" || orga || tasks.length || on("AUFGABE"));
+  // „Meine Fristen“ nur für Leute, die überhaupt Aufgaben haben (die meisten Bewohner nicht)
+  const hasTasks = orga || (await db.task.count({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" } } })) > 0;
+  const visibleKinds = CAL_KINDS.filter((k) => k !== "AUFGABE" || hasTasks);
   const agenda = weeks.flat().filter((d) => d.getUTCMonth() === month.getUTCMonth() && days.has(toInput(d)));
   const todayKey = toInput(t);
 

@@ -23,7 +23,7 @@ export default async function MeineAufgaben() {
   );
   return (
     <>
-      <PageTitle>Meine Aufgaben</PageTitle>
+      <PageTitle>Mein Einsatz</PageTitle>
       <section className="card mb-4"><h2 className="mb-1 ">Offen ({open.length})</h2><ul>{open.map(row)}</ul>{!open.length && <p className="text-sm text-stone-500">Nichts zu tun – danke! 🎉</p>}</section>
       <section className="card mb-4"><h2 className="mb-1 ">Meine Helfer-Einsätze</h2>
         <ul>{slots.map((s) => <li key={s.id} className="border-t border-stone-100 py-2 first:border-0"><Link href={`/veranstaltungen/${s.slot.eventId}`} className="font-medium text-brand-600 hover:underline">{s.slot.title}</Link> <span className="text-sm text-stone-600">· {s.slot.event.title}, {formatDay(s.slot.event.date)}{s.slot.timeText ? `, ${s.slot.timeText}` : ""}</span></li>)}</ul>

@@ -5,6 +5,12 @@ Selbst gehostetes Planungstool für Veranstaltungen der Dorfgemeinschaft und Kei
 **Design „Plakat“:** Logo-Farben Grün `#0B4F2A`, Rot `#BA1722`, Gelb `#FFCA01`, kräftige Rahmen, Condensed-Überschriften; Handy mit Tab-Leiste, Desktop mit Kopfmenü. Farben und Schriften stehen in `tailwind.config.ts` und `src/app/globals.css`, das Logo in `public/logo.png`.
 
 ## Funktionen
+**Zwei Gesichter, eine App:** Für Bewohner ist der Dorfplaner eine einfache Bürger-App, für die Orga zusätzlich ein Planungswerkzeug.
+- *Bewohner* sehen im Menü nur **Start · Termine · Brett · Müll** (+ „Mehr“). Die Startseite zeigt die nächste Veranstaltung mit „Ich komme!“, die nächste Müllabfuhr, Neuigkeiten, offene Umfragen und das Brett. „Mein Einsatz“ (zugewiesene Aufgaben, Helfer-Schichten) und „Zur Freigabe“ erscheinen nur, wenn es für die Person etwas gibt.
+- *Orga* hat **Start · Termine · Planung · Aufgaben** (+ „Mehr“). Start ist dieselbe Bürgerseite (die Orga kann selbst zusagen), oben eine kompakte Karte zur **Planung** (`/planung`): alle laufenden Planungen mit Aufgaben, Überfälligen, Material, Helferbelegung, Zusagen und offenen Freigaben, dazu Eingang (Reservierungsanfragen, neue Anliegen, gemeldete Beiträge), überfällige und anstehende Fristen und die Werkzeuge (Vorlagen, Kalender, Archiv, Aushang, Umfrage, Neuigkeit).
+- In jeder Veranstaltung zeigt **👁 Bürgeransicht** der Orga, wie Bewohner die Seite sehen (bei Entwürfen mit Hinweis).
+- „Mehr“ ist gegliedert in *Für alle*, *Orga* und *Verwaltung*.
+
 **Planung (Orga):** Vorlagen mit Fristen relativ zum Veranstaltungstag · Veranstaltungen als Projekte mit Meilensteinen, Aufgaben (Status, Zuständige) · Lessons Learned · „Als Vorlage speichern“ · Änderungsprotokoll · Helfer-Slots · Zu-/Absagen-Übersicht · **Budget pro Veranstaltung** (Rahmen, Ausgaben/Einnahmen, Prognose, Freigabe-Workflow)
 
 **Bewohner:** Veranstaltungen ansehen, zu-/absagen (mit Begleitung), sich für Helfer-Slots eintragen · „Meine Aufgaben“ · Neuigkeiten · Vereine/Gruppen & Ansprechpartner · Müllkalender · Umfragen · Räume & Inventar reservieren
