@@ -12,7 +12,7 @@ import { PrintButton } from "@/components/print-button";
 import { DirtyGuard } from "@/components/dirty-guard";
 import {
   updateMeeting, deleteMeeting, addAgendaItems, deleteAgendaItem, moveAgendaItem, setInvitees, sendInvitations, respond,
-  saveProtocol, saveAndTodo, finalizeProtocol, sendProtocol, toggleTodo, deleteTodo,
+  saveProtocol, saveAndTodo, saveAndFinalize, finalizeProtocol, sendProtocol, toggleTodo, deleteTodo,
 } from "../actions";
 
 const respCls: Record<string, string> = { OFFEN: "border-2 border-stone-300 text-stone-600", ZUGESAGT: "bg-brand-600 text-white", ABGESAGT: "bg-poster text-white" };
@@ -79,16 +79,16 @@ export default async function Versammlung({ params, searchParams }: { params: Pr
                 <span className={`w-full pl-7 text-xs ${!p.email ? "text-poster" : "text-stone-500"}`}>{!p.email ? "keine E-Mail-Adresse hinterlegt" : i?.invitedAt ? `eingeladen ${formatDay(i.invitedAt)} · ${MAIL_STATUS_LABEL[i.mailStatus ?? ""] ?? ""}` : "noch nicht eingeladen"}</span>
               </li>); })}
           </ul>
-          <button className="btn-light">Auswahl speichern</button>
+          {final ? <p className="text-sm text-stone-600">Protokoll abgeschlossen – Eingeladene sind festgeschrieben.</p> : <button className="btn-light">Auswahl speichern</button>}
         </form>
         {noMail.length > 0 && <p className="mt-2 text-sm text-poster">Ohne E-Mail-Adresse: {noMail.map((i) => i.name).join(", ")} – bekommen nur Push (falls App installiert). Adresse im Profil bzw. unter „Personen“ ergänzen.</p>}
-        <div className="mt-3 flex flex-wrap gap-2 border-t-2 border-stone-200 pt-3">
+        {!final && <div className="mt-3 flex flex-wrap gap-2 border-t-2 border-stone-200 pt-3">
           <form>{hidden}
             {notInvited.length > 0 ? <button formAction={sendInvitations.bind(null, "neu")} className="btn">Einladung senden ({notInvited.length})</button>
               : <button formAction={sendInvitations.bind(null, "alle")} className="btn-light">Allen erneut senden (Aktualisierung)</button>}
           </form>
           <a href={mailtoHref(emails, inv.subject, inv.text)} className="btn-light">Mailprogramm öffnen</a>
-        </div>
+        </div>}
       </section>
 
       {/* ---------- Tagesordnung ---------- */}
@@ -112,7 +112,7 @@ export default async function Versammlung({ params, searchParams }: { params: Pr
         <section className="card mb-4 print:hidden"><h2 className="mb-2">Offen aus früheren Versammlungen</h2>
           <ul className="text-sm">{carried.map((x) => (
             <li key={x.id} className="flex flex-wrap items-center gap-x-3 border-t border-stone-100 py-1.5 first:border-0">
-              <form action={toggleTodo}><input type="hidden" name="id" value={x.id} /><button className="rounded border-2 border-brand-600 px-1.5 text-xs font-bold uppercase text-brand-600">erledigt</button></form>
+              <form action={toggleTodo}><input type="hidden" name="id" value={x.id} /><button className="rounded border-2 border-brand-600 px-1.5 text-xs font-bold uppercase text-brand-600">✓ Abhaken</button></form>
               <span className="font-semibold">{x.title}</span><span className="text-stone-600">{x.assignee?.name ?? "niemand"}</span>
               <Link href={`/versammlungen/${x.meeting.id}`} className="ml-auto text-brand-600 hover:underline">{formatDay(x.meeting.date)}</Link>
             </li>))}</ul></section>
@@ -122,10 +122,13 @@ export default async function Versammlung({ params, searchParams }: { params: Pr
       {!final ? (
         <section className="card mb-4 print:hidden">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h2>Protokoll</h2><span className="text-sm text-stone-600">Speichern nicht vergessen – unten oder zwischendurch.</span></div>
-          <form id="protokoll" action={saveProtocol} className="space-y-4">{hidden}
+          <form id="protokoll" action={saveProtocol} className="space-y-4">{hidden}<input type="hidden" name="orig_loaded" value="1" />
+            {/* Stand beim Laden – damit gleichzeitige Bearbeitungen sich nicht gegenseitig überschreiben */}
+            {[["chair", m.chair], ["minuteTaker", m.minuteTaker], ["guests", m.guests], ["generalNotes", m.generalNotes], ...m.agenda.flatMap((a) => [[`notes_${a.id}`, a.notes], [`decision_${a.id}`, a.decision]])].map(([n, v]) => <input key={n} type="hidden" name={`orig_${n}`} value={v ?? ""} />)}
+            {m.invitees.filter((i) => i.present).map((i) => <input key={`p${i.id}`} type="hidden" name="orig_present" value={i.id} />)}
             <div className="grid gap-2 sm:grid-cols-2">
               <div><label className="label" htmlFor="chair">Sitzungsleitung</label><input id="chair" name="chair" maxLength={120} defaultValue={m.chair ?? ""} className="input" /></div>
-              <div><label className="label" htmlFor="mt">Protokollführung</label><input id="mt" name="minuteTaker" maxLength={120} defaultValue={m.minuteTaker ?? me.name} className="input" /></div>
+              <div><label className="label" htmlFor="mt">Protokollführung</label><input id="mt" name="minuteTaker" maxLength={120} defaultValue={m.minuteTaker ?? ""} placeholder={`z. B. ${me.name}`} className="input" /></div>
             </div>
             <fieldset><legend className="label">Anwesend</legend>
               <div className="flex flex-wrap gap-2">{m.invitees.map((i) => <label key={i.id} className="flex items-center gap-2 rounded-md border-2 border-stone-200 px-2 py-1"><input type="checkbox" name="present" value={i.id} defaultChecked={i.present} className="h-5 w-5" />{i.name}</label>)}</div>
@@ -159,13 +162,11 @@ export default async function Versammlung({ params, searchParams }: { params: Pr
             <div className="flex flex-wrap gap-2 border-t-2 border-stone-200 pt-3">
               <button className="btn">Protokoll speichern</button>
               <PrintButton label="Drucken / PDF" />
+              <button formAction={saveAndFinalize} className="btn-sun sm:ml-auto">Speichern & abschließen</button>
             </div>
+            <p className="text-sm text-stone-600">Nach dem Abschließen ist das Protokoll schreibgeschützt und kann verschickt werden.</p>
           </form>
           <DirtyGuard formId="protokoll" />
-          <form className="mt-3 border-t-2 border-stone-200 pt-3">{hidden}
-            <button formAction={finalizeProtocol.bind(null, false)} className="btn-sun">Protokoll abschließen</button>
-            <span className="ml-2 text-sm text-stone-600">Danach ist es schreibgeschützt und kann verschickt werden. Vorher speichern!</span>
-          </form>
         </section>
       ) : (
         <section className="card mb-4 print:hidden">
@@ -173,7 +174,7 @@ export default async function Versammlung({ params, searchParams }: { params: Pr
           <p className="mb-3 text-sm text-stone-600">Abgeschlossen am {formatDay(m.finalizedAt!)}{m.protocolSentAt ? ` · verschickt am ${formatDay(m.protocolSentAt)}` : ""}.</p>
           <div className="flex flex-wrap gap-2">
             <form>{hidden}<button formAction={sendProtocol} className="btn">{m.protocolSentAt ? "Erneut per Mail senden" : "Per Mail an alle Eingeladenen"}</button></form>
-            <a href={mailtoHref(emails, `Protokoll: ${m.title}`, protocol)} className="btn-light">Mailprogramm öffnen</a>
+            <a href={mailtoHref(emails, `Protokoll: ${m.title}`, `Hallo zusammen,\n\ndas Protokoll von „${m.title}“ (${formatDay(m.date)}) ist fertig:\n${appUrl()}/versammlungen/${m.id}\n\nViele Grüße`)} className="btn-light">Mailprogramm öffnen</a>
             <PrintButton label="Drucken / PDF" />
             <form>{hidden}<button formAction={finalizeProtocol.bind(null, true)} className="btn-light">Wieder öffnen</button></form>
           </div>
@@ -195,7 +196,7 @@ export default async function Versammlung({ params, searchParams }: { params: Pr
           <input name="location" defaultValue={m.location ?? ""} maxLength={200} placeholder="Ort" className="input sm:col-span-4" aria-label="Ort" />
           <textarea name="invitationText" defaultValue={m.invitationText ?? ""} rows={3} maxLength={2000} placeholder="Text für die Einladung" className="input sm:col-span-12" aria-label="Einladungstext" />
           <p className="text-sm text-stone-600 sm:col-span-8">Nach Änderungen „Allen erneut senden“ nutzen, damit alle den neuen Stand haben.</p>
-          <button className="btn-light sm:col-span-4">Speichern</button>
+          <button className="btn-light sm:col-span-4" disabled={final} title={final ? "Protokoll ist abgeschlossen" : undefined}>Speichern</button>
         </form>
         <form action={deleteMeeting} className="mt-3"><input type="hidden" name="id" value={m.id} /><button className="btn-danger">Versammlung löschen</button></form>
       </details>

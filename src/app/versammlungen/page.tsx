@@ -41,7 +41,7 @@ export default async function Versammlungen({ searchParams }: { searchParams: Pr
         <summary className="cursor-pointer font-display text-xl font-bold uppercase text-brand-600">+ Neue Versammlung</summary>
         <form action={createMeeting} className="mt-3 grid gap-2 sm:grid-cols-12">
           <input name="title" defaultValue="Orga-Treffen" maxLength={120} required className="input sm:col-span-12" aria-label="Titel" />
-          <div className="sm:col-span-4"><label className="label" htmlFor="d">Datum</label><input id="d" type="date" name="date" required min={toInput(t)} className="input" /></div>
+          <div className="sm:col-span-4"><label className="label" htmlFor="d">Datum</label><input id="d" type="date" name="date" required defaultValue={toInput(t)} className="input" /></div>
           <div className="sm:col-span-2"><label className="label" htmlFor="s">Beginn</label><input id="s" type="time" name="startTime" required defaultValue="19:30" className="input" /></div>
           <div className="sm:col-span-2"><label className="label" htmlFor="e">Ende (opt.)</label><input id="e" type="time" name="endTime" className="input" /></div>
           <div className="sm:col-span-4"><label className="label" htmlFor="o">Ort</label><input id="o" name="location" maxLength={200} placeholder="z. B. Gemeindehaus" className="input" /></div>

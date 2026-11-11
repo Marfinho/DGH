@@ -31,7 +31,6 @@ export async function createMeeting(fd: FormData) {
   try { date = parseDay(String(fd.get("date"))); startTime = parseTime(String(fd.get("startTime") ?? "")); endTime = parseTime(String(fd.get("endTime") ?? "")); }
   catch (e) { redirect(`/versammlungen?fehler=${encodeURIComponent((e as Error).message)}`); }
   if (!startTime!) redirect(`/versammlungen?fehler=${encodeURIComponent("Bitte eine Uhrzeit angeben.")}`);
-  if (date! < today()) redirect(`/versammlungen?fehler=${encodeURIComponent("Das Datum liegt in der Vergangenheit.")}`);
   const people = await orgaPeople();
   const m = await db.meeting.create({ data: {
     title, date: date!, startTime: startTime!, endTime: endTime! && endTime! > startTime! ? endTime! : null,
@@ -46,6 +45,7 @@ export async function createMeeting(fd: FormData) {
 export async function updateMeeting(fd: FormData) {
   await requireUser("ORGANISATOR");
   const id = Number(fd.get("id"));
+  if ((await loadOpen(id)).finalizedAt) back(id, { fehler: "Das Protokoll ist abgeschlossen – zum Ändern erst wieder öffnen." });
   let date: Date, startTime: string | null, endTime: string | null;
   try { date = parseDay(String(fd.get("date"))); startTime = parseTime(String(fd.get("startTime") ?? "")); endTime = parseTime(String(fd.get("endTime") ?? "")); }
   catch (e) { back(id, { fehler: (e as Error).message }); }
@@ -99,6 +99,7 @@ export async function moveAgendaItem(dir: "up" | "down", fd: FormData) {
 export async function setInvitees(fd: FormData) {
   await requireUser("ORGANISATOR");
   const id = Number(fd.get("meetingId"));
+  if ((await loadOpen(id)).finalizedAt) back(id, { fehler: "Das Protokoll ist abgeschlossen – zum Ändern erst wieder öffnen." });
   const people = await orgaPeople();
   const allowed = new Map(people.map((p) => [p.id, p]));
   const chosen = new Set(fd.getAll("personId").map(Number).filter((n) => allowed.has(n)));
@@ -150,11 +151,19 @@ export async function respond(response: string, fd: FormData) {
 async function persistProtocol(id: number, fd: FormData) {
   const m = await db.meeting.findUniqueOrThrow({ where: { id }, include: { agenda: true, invitees: true } });
   if (m.finalizedAt) back(id, { fehler: "Das Protokoll ist abgeschlossen – zum Ändern erst wieder öffnen." });
-  const present = new Set(fd.getAll("present").map(Number));
+  // Gleichzeitiges Bearbeiten: nur Felder übernehmen, die diese Person geändert hat (orig_* = Stand beim Laden).
+  // So überschreibt ein älteres Formular nicht, was jemand anderes inzwischen gespeichert hat – und eigener Text geht nie verloren.
+  const pick = (name: string, current: string | null, max: number) => {
+    const orig = fd.get(`orig_${name}`);
+    if (orig !== null && String(fd.get(name) ?? "").trim() === String(orig).trim()) return current;
+    return clip(fd.get(name), max);
+  };
+  const present = new Set(fd.getAll("present").map(Number)), wasPresent = new Set(fd.getAll("orig_present").map(Number));
+  const hasOrig = fd.has("orig_loaded");
   await db.$transaction([
-    db.meeting.update({ where: { id }, data: { chair: clip(fd.get("chair"), 120), minuteTaker: clip(fd.get("minuteTaker"), 120), guests: clip(fd.get("guests"), 500), generalNotes: clip(fd.get("generalNotes"), 10000) } }),
-    ...m.agenda.map((a) => db.meetingAgendaItem.update({ where: { id: a.id }, data: { notes: clip(fd.get(`notes_${a.id}`), 10000), decision: clip(fd.get(`decision_${a.id}`), 2000) } })),
-    ...m.invitees.map((i) => db.meetingInvitee.update({ where: { id: i.id }, data: { present: present.has(i.id) } })),
+    db.meeting.update({ where: { id }, data: { chair: pick("chair", m.chair, 120), minuteTaker: pick("minuteTaker", m.minuteTaker, 120), guests: pick("guests", m.guests, 500), generalNotes: pick("generalNotes", m.generalNotes, 10000) } }),
+    ...m.agenda.map((a) => db.meetingAgendaItem.update({ where: { id: a.id }, data: { notes: pick(`notes_${a.id}`, a.notes, 10000), decision: pick(`decision_${a.id}`, a.decision, 2000) } })),
+    ...m.invitees.map((i) => db.meetingInvitee.update({ where: { id: i.id }, data: { present: hasOrig && present.has(i.id) === wasPresent.has(i.id) ? i.present : present.has(i.id) } })),
   ]);
   // neues To-do aus dem Formular
   const title = clip(fd.get("todoTitle"), 200);
@@ -215,6 +224,15 @@ export async function deleteTodo(fd: FormData) {
   await requireUser("ORGANISATOR");
   const t = await db.meetingTodo.delete({ where: { id: Number(fd.get("id")) } });
   refresh(t.meetingId);
+}
+
+export async function saveAndFinalize(fd: FormData) {
+  await requireUser("ORGANISATOR");
+  const id = Number(fd.get("meetingId"));
+  await persistProtocol(id, fd);
+  await db.meeting.update({ where: { id }, data: { finalizedAt: new Date() } });
+  refresh(id);
+  back(id, { abgeschlossen: "1" });
 }
 
 export async function finalizeProtocol(open: boolean, fd: FormData) {
