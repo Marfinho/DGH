@@ -10,7 +10,7 @@ export default async function Mehr() {
   const me = await requireUser();
   const orga = hasRole(me, "ORGANISATOR");
   // „Mein Einsatz“ nur zeigen, wenn es etwas gibt (Bewohner haben selten Aufgaben)
-  const hasDuties = !orga && (await db.task.count({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" } } }) + await db.helperSignup.count({ where: { personId: me.id } })) > 0;
+  const hasDuties = !orga && (await db.task.count({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" } } }) + await db.helperSignup.count({ where: { personId: me.id } }) + await db.meetingTodo.count({ where: { assigneeId: me.id, done: false } })) > 0;
   const groups: [string, L[]][] = [
     ["Für alle", [
       ["/kalender", "Kalender"], ["/neuigkeiten", "Neuigkeiten"], ["/umfragen", "Umfragen"], ["/brett", "Schwarzes Brett"], ["/fundbuero", "Fundbüro"],
@@ -18,7 +18,7 @@ export default async function Mehr() {
       ...(hasDuties ? [["/meine-aufgaben", "Mein Einsatz"] as L] : []), ["/profil", "Mein Profil & Benachrichtigungen"], ["/installieren", "App aufs Handy holen"],
     ]],
   ];
-  if (orga) groups.push(["Orga", [["/planung", "Planung"], ["/veranstaltungen/neu", "Neue Veranstaltung"], ["/vorlagen", "Vorlagen"], ["/archiv", "Archiv & Jahresübersicht"], ["/aushang", "Aushang drucken"]]]);
+  if (orga) groups.push(["Orga", [["/planung", "Planung"], ["/versammlungen", "Versammlungen & Protokolle"], ["/veranstaltungen/neu", "Neue Veranstaltung"], ["/vorlagen", "Vorlagen"], ["/archiv", "Archiv & Jahresübersicht"], ["/aushang", "Aushang drucken"]]]);
   if (hasRole(me, "ADMIN")) groups.push(["Verwaltung", [["/personen", "Personen & Zugänge"]]]);
   return (
     <>

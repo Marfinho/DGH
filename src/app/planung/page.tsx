@@ -9,7 +9,7 @@ import { PageTitle, StatusBadge } from "@/components/ui";
 export default async function Planung() {
   await requireUser("ORGANISATOR");
   const t = today();
-  const [events, tasks, bookings, issues, reportedBrett, reportedFund] = await Promise.all([
+  const [events, tasks, bookings, issues, reportedBrett, reportedFund, nextMeeting, openTodos] = await Promise.all([
     db.event.findMany({
       where: { status: "GEPLANT" }, orderBy: { date: "asc" },
       include: {
@@ -25,6 +25,8 @@ export default async function Planung() {
     db.issue.count({ where: { status: "NEU" } }),
     db.boardPost.count({ where: { reportedAt: { not: null }, category: { not: "FUNDBUERO" } } }),
     db.boardPost.count({ where: { reportedAt: { not: null }, category: "FUNDBUERO" } }),
+    db.meeting.findFirst({ where: { date: { gte: t } }, orderBy: [{ date: "asc" }, { startTime: "asc" }], include: { invitees: { select: { response: true } }, _count: { select: { agenda: true } } } }),
+    db.meetingTodo.count({ where: { done: false } }),
   ]);
   const overdue = tasks.filter((x) => x.dueDate < t), soon = tasks.filter((x) => x.dueDate >= t);
   const inbox: [string, string, number][] = [
@@ -56,6 +58,12 @@ export default async function Planung() {
             <li key={label}><Link href={href} className="flex min-h-[48px] items-center justify-between rounded-md border-2 border-brand-600 px-3 font-semibold hover:bg-brand-50">{label}<span className="rounded bg-sun px-2 font-display text-xl font-bold">{n}</span></Link></li>))}</ul>
         </section>
       )}
+
+      <Link href={nextMeeting ? `/versammlungen/${nextMeeting.id}` : "/versammlungen"} className="card mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 !py-3 hover:bg-brand-50">
+        <span className="font-display text-2xl font-extrabold uppercase text-brand-600">Versammlung</span>
+        <span className="text-sm text-stone-700">{nextMeeting ? <>Nächste: <b>{nextMeeting.title}</b>, {formatDay(nextMeeting.date)}, {nextMeeting.startTime} Uhr · {nextMeeting.invitees.filter((i) => i.response === "ZUGESAGT").length} Zusagen · {nextMeeting._count.agenda} TOPs</> : "Keine Versammlung geplant – jetzt einladen"}{openTodos ? <> · <b>{openTodos} offene To-dos</b></> : ""}</span>
+        <span className="btn-light ml-auto !min-h-[40px]">{nextMeeting ? "Öffnen" : "Planen"}</span>
+      </Link>
 
       <h2 className="mb-3">Laufende Planungen</h2>
       {!events.length && <p className="card mb-6 text-sm text-stone-600">Gerade wird nichts geplant. <Link href="/veranstaltungen/neu" className="font-semibold text-brand-600 underline">Neue Veranstaltung</Link> – am besten aus einer Vorlage.</p>}
@@ -103,7 +111,7 @@ export default async function Planung() {
 
       <h2 className="mb-3">Werkzeuge</h2>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {([["/vorlagen", "Vorlagen", "Osterfeuer, Dorffest, Weihnachtsmarkt …"], ["/kalender", "Kalender", "Monatsansicht aller Termine"], ["/archiv", "Archiv & Jahresvergleich", "Vergangene Veranstaltungen, Lessons Learned"],
+        {([["/versammlungen", "Versammlungen", "Einladen, Tagesordnung, Protokoll"], ["/vorlagen", "Vorlagen", "Osterfeuer, Dorffest, Weihnachtsmarkt …"], ["/kalender", "Kalender", "Monatsansicht aller Termine"], ["/archiv", "Archiv & Jahresvergleich", "Vergangene Veranstaltungen, Lessons Learned"],
           ["/aushang", "Aushang drucken", "DIN-A4 für den Schaukasten"], ["/umfragen", "Umfrage starten", "Termin finden, Meinungen einholen"], ["/neuigkeiten", "Neuigkeit schreiben", "mit Push an alle"]] as const).map(([h, l, d]) => (
           <li key={h}><Link href={h} className="card block !py-3 hover:bg-brand-50"><span className="font-display text-xl font-bold uppercase text-brand-600">{l}</span><span className="block text-sm text-stone-600">{d}</span></Link></li>
         ))}

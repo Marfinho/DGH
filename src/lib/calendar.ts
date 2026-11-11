@@ -1,9 +1,9 @@
 // Monatsansicht: reine Logik (ohne Datenbank, testbar). Alle Tage als UTC-Mitternacht.
 const DAY = 86_400_000;
 
-export type CalKind = "TERMIN" | "MUELL" | "LEIHEN" | "AUFGABE" | "UMFRAGE";
-export const CAL_KINDS: CalKind[] = ["TERMIN", "MUELL", "LEIHEN", "AUFGABE", "UMFRAGE"];
-export const CAL_LABEL: Record<CalKind, string> = { TERMIN: "Veranstaltungen", MUELL: "Müllabfuhr", LEIHEN: "Reservierungen", AUFGABE: "Meine Fristen", UMFRAGE: "Umfragen" };
+export type CalKind = "TERMIN" | "VERSAMMLUNG" | "MUELL" | "LEIHEN" | "AUFGABE" | "UMFRAGE";
+export const CAL_KINDS: CalKind[] = ["TERMIN", "VERSAMMLUNG", "MUELL", "LEIHEN", "AUFGABE", "UMFRAGE"];
+export const CAL_LABEL: Record<CalKind, string> = { TERMIN: "Veranstaltungen", VERSAMMLUNG: "Versammlungen", MUELL: "Müllabfuhr", LEIHEN: "Reservierungen", AUFGABE: "Meine Fristen", UMFRAGE: "Umfragen" };
 
 export type CalEntry = { kind: CalKind; title: string; start: Date; end?: Date; href?: string; note?: string; mine?: boolean; draft?: boolean };
 

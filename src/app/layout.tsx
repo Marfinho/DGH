@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const orga = !!u && hasRole(u, "ORGANISATOR");
   const termine: NavItem = { href: "/veranstaltungen", label: "Termine", match: ["/kalender"] };
   const main: NavItem[] = orga
-    ? [{ href: "/", label: "Start" }, termine, { href: "/planung", label: "Planung", match: ["/vorlagen", "/archiv", "/aushang"] }, { href: "/meine-aufgaben", label: "Aufgaben" }]
+    ? [{ href: "/", label: "Start" }, termine, { href: "/planung", label: "Planung", match: ["/vorlagen", "/archiv", "/aushang", "/versammlungen"] }, { href: "/meine-aufgaben", label: "Aufgaben" }]
     : [{ href: "/", label: "Start" }, termine, { href: "/brett", label: "Brett", match: ["/fundbuero"] }, { href: "/muell", label: "Müll" }];
   const top: NavItem[] = orga
     ? [...main, { href: "/brett", label: "Brett", match: ["/fundbuero"], wide: true }, { href: "/neuigkeiten", label: "Neuigkeiten", wide: true }, { href: "/mehr", label: "Mehr" }]

@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 export async function GET() {
   const u = await getUser();
   if (!u) return new Response("Unauthorized", { status: 401 });
-  const [profile, tasks, signups, rsvps, push, roles, requests, posts, issues, votes, bookings, polls, sched, mat] = await Promise.all([
+  const [profile, tasks, signups, rsvps, push, roles, requests, posts, issues, votes, bookings, polls, sched, mat, meetInv, meetTodos] = await Promise.all([
     db.person.findUniqueOrThrow({ where: { id: u.id }, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true, lastLoginAt: true } }),
     db.task.findMany({ where: { assigneeId: u.id }, select: { title: true, dueDate: true, status: true, event: { select: { title: true } } } }),
     db.helperSignup.findMany({ where: { personId: u.id }, select: { createdAt: true, slot: { select: { title: true, event: { select: { title: true, date: true } } } } } }),
@@ -20,8 +20,10 @@ export async function GET() {
     db.poll.findMany({ where: { createdById: u.id }, select: { title: true, createdAt: true } }),
     db.scheduleItem.findMany({ where: { responsibleId: u.id }, select: { title: true, time: true, dayOffset: true, event: { select: { title: true, date: true } } } }),
     db.materialItem.findMany({ where: { responsibleId: u.id }, select: { title: true, quantity: true, status: true, event: { select: { title: true } } } }),
+    db.meetingInvitee.findMany({ where: { personId: u.id }, select: { name: true, response: true, present: true, invitedAt: true, meeting: { select: { title: true, date: true } } } }),
+    db.meetingTodo.findMany({ where: { assigneeId: u.id }, select: { title: true, dueDate: true, done: true, meeting: { select: { title: true, date: true } } } }),
   ]);
-  return new Response(JSON.stringify({ exportiertAm: new Date().toISOString(), profil: profile, aufgaben: tasks, helferEintraege: signups, zusagen: rsvps, pushGeraete: push, rollenBeiVeranstaltungen: roles, budgetAntraegeUndEntscheidungen: requests, schwarzesBrettUndFundbuero: posts, anliegen: issues, umfrageStimmen: votes, erstellteUmfragen: polls, reservierungen: bookings, verantwortlichImAblauf: sched, verantwortlichFuerMaterial: mat, muellErinnerung: { aktiv: u.wastePush, tonnen: u.wasteTypes } }, null, 2), {
+  return new Response(JSON.stringify({ exportiertAm: new Date().toISOString(), profil: profile, aufgaben: tasks, helferEintraege: signups, zusagen: rsvps, pushGeraete: push, rollenBeiVeranstaltungen: roles, budgetAntraegeUndEntscheidungen: requests, schwarzesBrettUndFundbuero: posts, anliegen: issues, umfrageStimmen: votes, erstellteUmfragen: polls, reservierungen: bookings, verantwortlichImAblauf: sched, verantwortlichFuerMaterial: mat, versammlungen: meetInv, versammlungsTodos: meetTodos, muellErinnerung: { aktiv: u.wastePush, tonnen: u.wasteTypes } }, null, 2), {
     headers: { "content-type": "application/json; charset=utf-8", "content-disposition": 'attachment; filename="meine-daten.json"' },
   });
 }

@@ -43,6 +43,8 @@ model Person {
   decidedBookings Booking[]          @relation("bookingDecider")
   scheduleItems   ScheduleItem[]
   materialItems   MaterialItem[]
+  meetingInvites  MeetingInvitee[]
+  meetingTodos    MeetingTodo[]
 }
 
 model Session {
@@ -575,4 +577,69 @@ model TemplateMaterialItem {
   source     String?
   note       String?
   sort       Int      @default(0)
+}
+
+// Versammlung/Sitzung des Orga-Teams (nur Organisator/Admin). date = Kalendertag (UTC-Mitternacht), Zeiten als "HH:MM" (Ortszeit Berlin)
+model Meeting {
+  id             Int                 @id @default(autoincrement())
+  title          String
+  date           DateTime
+  startTime      String
+  endTime        String?
+  location       String?
+  invitationText String? // persönlicher Text in der Einladung
+  chair          String? // Sitzungsleitung (Name als Text, bleibt im Protokoll erhalten)
+  minuteTaker    String? // Protokoll
+  guests         String? // Gäste ohne Konto
+  generalNotes   String? // Verschiedenes / Allgemeines
+  finalizedAt    DateTime? // Protokoll abgeschlossen = schreibgeschützt
+  protocolSentAt DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  agenda         MeetingAgendaItem[]
+  invitees       MeetingInvitee[]
+  todos          MeetingTodo[]
+}
+
+model MeetingAgendaItem {
+  id        Int           @id @default(autoincrement())
+  meetingId Int
+  meeting   Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sort      Int           @default(0)
+  title     String
+  notes     String? // Protokoll zum Punkt
+  decision  String? // Beschluss
+  todos     MeetingTodo[]
+}
+
+// Eingeladene Person. name wird beim Einladen festgehalten, damit Protokolle auch nach Kontolöschung vollständig bleiben.
+// response: OFFEN | ZUGESAGT | ABGESAGT.  mailStatus: GESENDET | KEINE_ADRESSE | FEHLER | NICHT_KONFIGURIERT
+model MeetingInvitee {
+  id         Int       @id @default(autoincrement())
+  meetingId  Int
+  meeting    Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  personId   Int?
+  person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  name       String
+  response   String    @default("OFFEN")
+  present    Boolean   @default(false)
+  invitedAt  DateTime?
+  mailStatus String?
+
+  @@unique([meetingId, personId])
+}
+
+// To-do aus dem Protokoll
+model MeetingTodo {
+  id           Int                @id @default(autoincrement())
+  meetingId    Int
+  meeting      Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  agendaItemId Int?
+  agendaItem   MeetingAgendaItem? @relation(fields: [agendaItemId], references: [id], onDelete: SetNull)
+  title        String
+  assigneeId   Int?
+  assignee     Person?            @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueDate      DateTime?
+  done         Boolean            @default(false)
+  createdAt    DateTime           @default(now())
 }

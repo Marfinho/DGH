@@ -15,7 +15,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
   const t = today();
   const { fehler } = await searchParams;
 
-  const [events, news, waste, mine, slots, approvals, openPolls, boardLatest] = await Promise.all([
+  const [events, news, waste, mine, slots, approvals, openPolls, boardLatest, todos] = await Promise.all([
     db.event.findMany({ where: { status: "GEPLANT", published: true, date: { gte: t } }, orderBy: { date: "asc" }, take: 5, include: { rsvps: { where: { personId: me.id } }, group: { select: { name: true } } } }),
     db.newsPost.findMany({ orderBy: [{ pinned: "desc" }, { publishedAt: "desc" }], take: 3 }),
     db.wasteDate.findMany({ where: { date: { gte: t, lte: addDays(t, 14) } }, orderBy: { date: "asc" }, take: 6 }),
@@ -28,6 +28,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
     }),
     db.poll.findMany({ where: { closedAt: null, OR: [{ closesOn: null }, { closesOn: { gte: t } }], votes: { none: { personId: me.id } } }, orderBy: { createdAt: "desc" }, take: 3, select: { id: true, title: true, closesOn: true } }),
     db.boardPost.findMany({ where: { expiresAt: { gt: new Date() }, status: "OFFEN" }, orderBy: { createdAt: "desc" }, take: 3, select: { id: true, title: true, category: true, kind: true } }),
+    db.meetingTodo.findMany({ where: { assigneeId: me.id, done: false }, orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }], take: 5, include: { meeting: { select: { title: true } } } }),
   ]);
   const plan = orga ? await Promise.all([
     db.task.count({ where: { status: { not: "ERLEDIGT" }, event: { status: "GEPLANT" }, dueDate: { lt: t } } }),
@@ -86,10 +87,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
           <ul>{openPolls.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-x-3 border-t-2 border-stone-200 py-2 first:border-0"><span className="font-semibold">{p.title}</span>{p.closesOn && <span className="text-sm text-stone-600">bis {formatDay(p.closesOn)}</span>}<Link href={`/umfragen#u${p.id}`} className="btn-sun ml-auto">Abstimmen</Link></li>)}</ul></section>
       )}
 
-      {(mine.length > 0 || slots.length > 0) && (
+      {(mine.length > 0 || slots.length > 0 || todos.length > 0) && (
         <section className="card mb-4"><div className="mb-2 flex justify-between"><h2>Mein Einsatz</h2><Link href="/meine-aufgaben" className="text-sm font-semibold text-brand-600 hover:underline">Alle →</Link></div>
           <ul className="text-sm">
             {slots.map((s) => <li key={`s${s.id}`} className="flex flex-wrap gap-x-2 border-t border-stone-100 py-1.5 first:border-0"><span className="font-medium">🙋 {s.slot.title}{s.slot.timeText ? ` (${s.slot.timeText})` : ""}</span><Link href={`/veranstaltungen/${s.slot.event.id}`} className="text-brand-600 hover:underline">{s.slot.event.title}</Link><span className="ml-auto text-stone-600">{formatDay(s.slot.event.date)}</span></li>)}
+            {todos.map((x) => <li key={`m${x.id}`} className="flex flex-wrap gap-x-2 border-t border-stone-100 py-1.5 first:border-0"><span className="font-medium">📝 {x.title}</span><span className="text-stone-500">{x.meeting.title}</span>{x.dueDate && <span className={`ml-auto ${x.dueDate < t ? "font-semibold text-poster" : "text-stone-600"}`}>{formatDay(x.dueDate)}</span>}</li>)}
             {mine.map((x) => <li key={x.id} className="flex flex-wrap gap-x-2 border-t border-stone-100 py-1.5 first:border-0"><span className="font-medium">✔ {x.title}</span><span className="text-stone-500">{x.event.title}</span><span className={`ml-auto ${x.dueDate < t ? "font-semibold text-poster" : "text-stone-600"}`}>{formatDay(x.dueDate)}</span></li>)}
           </ul></section>
       )}

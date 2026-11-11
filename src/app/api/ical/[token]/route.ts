@@ -17,6 +17,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ token: s
   const tasks = await db.task.findMany({ where: { assigneeId: p.id, status: { not: "ERLEDIGT" }, dueDate: { gte: since } }, include: { event: true } });
   for (const t of tasks) out.push({ uid: `task-${t.id}`, title: `Aufgabe: ${t.title} (${t.event.title})`, date: t.dueDate });
 
+  if (p.role === "ORGANISATOR" || p.role === "ADMIN") {
+    for (const m of await db.meeting.findMany({ where: { date: { gte: since } } })) out.push({ uid: `meeting-${m.id}`, title: m.title, date: m.date, startTime: m.startTime, endTime: m.endTime, location: m.location });
+  }
+  const todos = await db.meetingTodo.findMany({ where: { assigneeId: p.id, done: false, dueDate: { gte: since } }, include: { meeting: { select: { title: true } } } });
+  for (const t of todos) out.push({ uid: `mtodo-${t.id}`, title: `To-do: ${t.title} (${t.meeting.title})`, date: t.dueDate! });
   if (url.searchParams.get("muell") === "1") {
     for (const w of await db.wasteDate.findMany({ where: { date: { gte: since } } })) out.push({ uid: `waste-${w.id}`, title: `🗑 ${w.type}`, date: w.date });
   }

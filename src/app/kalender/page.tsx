@@ -6,9 +6,9 @@ import { CAL_KINDS, CAL_LABEL, byDay, monthGrid, monthKey, parseKinds, parseMont
 import { PageTitle } from "@/components/ui";
 
 const COLOR: Record<CalKind, string> = {
-  TERMIN: "bg-poster text-white", MUELL: "bg-stone-500 text-white", LEIHEN: "bg-sun text-ink", AUFGABE: "bg-brand-600 text-white", UMFRAGE: "border-2 border-ink bg-white text-ink",
+  TERMIN: "bg-poster text-white", VERSAMMLUNG: "bg-ink text-white", MUELL: "bg-stone-500 text-white", LEIHEN: "bg-sun text-ink", AUFGABE: "bg-brand-600 text-white", UMFRAGE: "border-2 border-ink bg-white text-ink",
 };
-const ICON: Record<CalKind, string> = { TERMIN: "🎉", MUELL: "🗑", LEIHEN: "🏠", AUFGABE: "✔", UMFRAGE: "🗳" };
+const ICON: Record<CalKind, string> = { TERMIN: "🎉", VERSAMMLUNG: "👥", MUELL: "🗑", LEIHEN: "🏠", AUFGABE: "✔", UMFRAGE: "🗳" };
 
 export default async function Kalender({ searchParams }: { searchParams: Promise<{ monat?: string; zeige?: string }> }) {
   const me = await requireUser();
@@ -22,7 +22,7 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
   const on = (k: CalKind) => kinds.includes(k);
   const none = Promise.resolve([] as never[]);
 
-  const [events, waste, bookings, tasks, polls] = await Promise.all([
+  const [events, waste, bookings, tasks, polls, meetings, mtodos] = await Promise.all([
     on("TERMIN") ? db.event.findMany({
       where: { date: { gte: from, lte: to }, ...(orga ? {} : { published: true, status: { not: "ARCHIVIERT" } }) },
       select: { id: true, title: true, date: true, location: true, published: true, group: { select: { name: true } }, rsvps: { where: { personId: me.id }, select: { status: true } } },
@@ -34,6 +34,8 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
     }) : none,
     on("AUFGABE") ? db.task.findMany({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" }, dueDate: { gte: from, lte: to } }, select: { id: true, title: true, dueDate: true, eventId: true, event: { select: { title: true } } } }) : none,
     on("UMFRAGE") ? db.poll.findMany({ where: { closedAt: null, closesOn: { gte: from, lte: to } }, select: { id: true, title: true, closesOn: true } }) : none,
+    orga && on("VERSAMMLUNG") ? db.meeting.findMany({ where: { date: { gte: from, lte: to } }, select: { id: true, title: true, date: true, startTime: true, location: true } }) : none,
+    on("AUFGABE") ? db.meetingTodo.findMany({ where: { assigneeId: me.id, done: false, dueDate: { gte: from, lte: to } }, select: { id: true, title: true, dueDate: true, meeting: { select: { title: true } } } }) : none,
   ]);
 
   const entries: CalEntry[] = [
@@ -51,6 +53,8 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
       };
     }),
     ...tasks.map((x): CalEntry => ({ kind: "AUFGABE", title: `Frist: ${x.title}`, start: x.dueDate, href: "/meine-aufgaben", note: x.event.title, mine: true })),
+    ...meetings.map((m): CalEntry => ({ kind: "VERSAMMLUNG", title: `${m.startTime} ${m.title}`, start: m.date, href: `/versammlungen/${m.id}`, note: m.location ?? undefined })),
+    ...mtodos.map((x): CalEntry => ({ kind: "AUFGABE", title: `To-do: ${x.title}`, start: x.dueDate!, href: "/meine-aufgaben", note: x.meeting.title, mine: true })),
     ...polls.map((p): CalEntry => ({ kind: "UMFRAGE", title: `Umfrage endet: ${p.title}`, start: p.closesOn!, href: `/umfragen#u${p.id}` })),
   ];
   const days = byDay(entries, from, to);
@@ -61,8 +65,8 @@ export default async function Kalender({ searchParams }: { searchParams: Promise
     return `/kalender?${p}`;
   };
   // „Meine Fristen“ nur für Leute, die überhaupt Aufgaben haben (die meisten Bewohner nicht)
-  const hasTasks = orga || (await db.task.count({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" } } })) > 0;
-  const visibleKinds = CAL_KINDS.filter((k) => k !== "AUFGABE" || hasTasks);
+  const hasTasks = orga || (await db.task.count({ where: { assigneeId: me.id, status: { not: "ERLEDIGT" } } })) + (await db.meetingTodo.count({ where: { assigneeId: me.id, done: false } })) > 0;
+  const visibleKinds = CAL_KINDS.filter((k) => (k !== "AUFGABE" || hasTasks) && (k !== "VERSAMMLUNG" || orga));
   const agenda = weeks.flat().filter((d) => d.getUTCMonth() === month.getUTCMonth() && days.has(toInput(d)));
   const todayKey = toInput(t);
 
